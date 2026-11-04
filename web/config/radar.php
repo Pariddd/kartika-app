@@ -12,6 +12,28 @@ return [
     'mode' => AppMode::normalize(env('APP_MODE')),
 
     /*
+    | Sumber data. X via Apify hanya diaktifkan setelah ada izin tertulis panitia.
+    */
+    'sources' => [
+        'x_enabled' => (bool) env('RADAR_X_ENABLED', false),
+    ],
+
+    /*
+    | Batas job pengumpulan (docs/kontrak.md bagian 4). Python memeriksa batas yang sama.
+    */
+    'collect' => [
+        'max_video_ids' => 10,
+        'youtube_max_items' => 5000,
+        'x_max_items' => 1000,
+        'query_max_length' => 200,
+    ],
+
+    /*
+    | Zona waktu tampilan. Database selalu menyimpan UTC.
+    */
+    'display_timezone' => 'Asia/Jakarta',
+
+    /*
     | Akun awal untuk seeder. Kata sandi wajib diisi di .env (minimal 8 karakter);
     | tidak ada kata sandi bawaan.
     */

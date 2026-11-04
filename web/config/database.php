@@ -97,6 +97,9 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Wajib: Laravel menulis waktu UTC tanpa zona. Tanpa ini PostgreSQL
+            // menafsirkannya memakai zona server (di Windows biasanya WIB), sehingga mundur 7 jam.
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [

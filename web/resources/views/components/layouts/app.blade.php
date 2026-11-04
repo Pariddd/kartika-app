@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ? $title.' · Radar Narasi' : 'Radar Narasi' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('head')
 </head>
 <body class="min-h-screen bg-paper font-sans text-ink antialiased">
     <header class="bg-ink text-paper">

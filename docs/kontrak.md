@@ -9,6 +9,8 @@ Dokumen ini mengikat seluruh kode `web/` dan `engine/`. Perubahan hanya lewat mi
 - Skema dimiliki migration Laravel di `web/database/migrations/`. Python tidak menjalankan DDL.
 - Kolom bertanda `[L]` hanya ditulis Laravel; `[P]` hanya ditulis Python.
 - Waktu selalu `timestamptz` dan disimpan dalam UTC. Tampilan dikonversi ke WIB. Di migration Laravel: `timestampTz()` dan `timestampsTz()`, tidak pernah `timestamp()` atau `timestamps()`.
+- Setiap koneksi ke PostgreSQL wajib memakai sesi `TimeZone = UTC` (Laravel: `'timezone' => 'UTC'` di `config/database.php`; Python: `options='-c TimeZone=UTC'` saat connect) dan Python hanya menulis `datetime` yang punya zona (`tzinfo`). Tanpa ini, waktu bergeser sebesar zona server, misalnya 7 jam di Windows dengan zona WIB.
+- Isi kolom `jsonb` tidak mempertahankan urutan kunci. Kode tidak boleh bergantung pada urutan kunci JSON.
 - Aturan hapus foreign key:
   - Semua FK ke `cases`, `clusters`, `accounts`, dan `analysis_jobs`: `ON DELETE CASCADE`, agar menghapus kasus menghapus seluruh datanya.
   - `audit_logs.case_id` dan `audit_logs.user_id`: `ON DELETE SET NULL`, agar jejak audit tetap ada.
@@ -32,7 +34,7 @@ Bawaan Laravel, ditambah `role` enum: `admin`, `analis`, `demo`.
 | mode | enum `live`, `demo`, `csv` | `live` hanya bisa dibuat saat `APP_MODE=local` |
 | sources | jsonb | contoh `["youtube"]` |
 | query | jsonb | parameter pengumpulan, sama dengan `params` job `collect` |
-| status | enum `draft`, `collecting`, `analyzing`, `done`, `failed` | |
+| status | enum `draft`, `collecting`, `analyzing`, `done`, `failed` | Pengecualian: kolom ini juga ditulis Python saat job berpindah tahap (`collecting` → `analyzing` → `done` atau `failed`). Kolom `cases` lain hanya ditulis Laravel |
 | created_by | FK users | |
 | expires_at | timestamptz null | kasus CSV: dibuat + 24 jam |
 | timestamps | | |
@@ -165,6 +167,8 @@ Batas, dicek di Laravel **dan** Python:
 - `max_items`: 1–1000 untuk X, 1–5000 untuk YouTube.
 - `video_ids`: 1–10 ID, masing-masing cocok dengan `^[A-Za-z0-9_-]{11}$`. Laravel mengekstrak ID dari link YouTube; yang dikirim ke antrean hanya ID.
 - `query`: 1–200 karakter.
+- `since` dan `until` (X): opsional, format `YYYY-MM-DD` atau `null`; `until` tidak boleh sebelum `since`.
+- Kasus yang dibuat lewat formulir selalu `mode = live` dan langsung berstatus `collecting`, bersama satu job `collect` dalam satu transaksi.
 - Pemetaan `params` ke input Actor Apify dilakukan di adapter Python, karena nama field input berbeda per Actor.
 
 ### `analyze`
