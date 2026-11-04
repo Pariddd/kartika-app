@@ -43,9 +43,22 @@ ALTER DEFAULT PRIVILEGES FOR ROLE radar_web IN SCHEMA public
 
 -- Tabel internal Laravel yang tidak boleh disentuh Python.
 -- Tambahkan di sini jika ada migration baru yang membuat tabel khusus Laravel.
-REVOKE ALL ON users, password_reset_tokens, sessions, cache, cache_locks,
-              jobs, job_batches, failed_jobs, migrations, audit_logs
-FROM radar_engine;
+-- Tabel yang belum ada dilewati, jadi blok ini aman dijalankan kapan saja.
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['users', 'password_reset_tokens', 'sessions', 'cache',
+                           'cache_locks', 'jobs', 'job_batches', 'failed_jobs',
+                           'migrations', 'audit_logs']
+  LOOP
+    IF to_regclass('public.' || t) IS NOT NULL THEN
+      EXECUTE format('REVOKE ALL ON public.%I FROM radar_engine', t);
+    ELSE
+      RAISE NOTICE 'Tabel % belum ada, dilewati', t;
+    END IF;
+  END LOOP;
+END $$;
 
 ------------------------------------------------------------
 -- BAGIAN C — uji (jalankan baris per baris)

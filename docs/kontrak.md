@@ -1,8 +1,8 @@
 # Kontrak antar-anggota — Radar Narasi
 
-Versi 1 · disepakati 3 November 2026
+Versi 1 · dikunci 4 November 2026
 
-Dokumen ini mengikat ketiga workstream. Perubahan hanya lewat migration Laravel baru, dengan persetujuan ketiga anggota, dan `schema_version` dinaikkan bila format JSON berubah.
+Dokumen ini mengikat seluruh kode `web/` dan `engine/`. Perubahan hanya lewat migration Laravel baru, dicatat di dokumen ini, dan `schema_version` dinaikkan bila format JSON berubah.
 
 ## 1. Kepemilikan
 
@@ -14,6 +14,10 @@ Dokumen ini mengikat ketiga workstream. Perubahan hanya lewat migration Laravel 
   - `audit_logs.case_id` dan `audit_logs.user_id`: `ON DELETE SET NULL`, agar jejak audit tetap ada.
   - `cluster_reviews.user_id` dan `cases.created_by`: `ON DELETE RESTRICT`.
 - Kolom enum dibuat dengan `enum()` Laravel (di PostgreSQL menjadi varchar + CHECK).
+- Setiap kolom foreign key diberi indeks. PostgreSQL tidak membuatnya otomatis, padahal penghapusan berantai (cascade) dan join memerlukannya.
+- Constraint tambahan di luar tabel bagian 2:
+  - `accounts`: unique (case_id, display_label), agar label `Akun-0001` tidak pernah kembar dalam satu kasus.
+  - `demo_ground_truth`: primary key (case_id, account_id), satu akun hanya masuk satu klaster tanaman per kasus.
 
 ## 2. Tabel
 
