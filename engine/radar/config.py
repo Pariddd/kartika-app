@@ -28,6 +28,7 @@ class Settings:
     db_password: str
     poll_seconds: float
     worker_id: str
+    pseudo_key: str = ""
 
     @property
     def is_local(self) -> bool:
@@ -47,4 +48,5 @@ def load_settings(env_file: Path | None = None) -> Settings:
         poll_seconds=float(os.getenv("WORKER_POLL_SECONDS", "3")),
         # Maksimal 64 karakter sesuai kolom analysis_jobs.worker_id.
         worker_id=f"{socket.gethostname()}:{os.getpid()}"[:64],
+        pseudo_key=os.getenv("PSEUDO_KEY", ""),
     )

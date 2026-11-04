@@ -1,8 +1,8 @@
 """Penanganan per jenis job.
 
-Tahap ini masih stub: alur antrean lengkap (collect -> analyze -> selesai),
-tetapi belum mengambil data atau menganalisis. Adapter YouTube dan modul
-analisis menggantikan isi handle_collect dan handle_analyze di tahap berikutnya.
+- collect sintetis: membuat dataset demo beserta kunci jawaban (boleh di mode publik).
+- collect YouTube/X: masih stub sampai adapter dibuat (hanya mode lokal).
+- analyze: masih stub sampai modul sinyal dibuat.
 """
 
 from __future__ import annotations
@@ -12,15 +12,12 @@ from typing import Any
 
 import psycopg
 
-from radar import queue
+from radar import queue, synthetic
 from radar.config import Settings
-from radar.payload import (
-    DEFAULT_ANALYZE_PARAMS,
-    SCHEMA_VERSION,
-    PayloadError,
-    validate_collect_params,
-    validate_envelope,
-)
+from radar.errors import PayloadError
+from radar.ingest import ingest
+from radar.payload import DEFAULT_ANALYZE_PARAMS, SCHEMA_VERSION, validate_collect_params, validate_envelope
+from radar.pseudo import Pseudonymizer
 from radar.queue import Job
 
 COLLECT_DISABLED = "collect_disabled_in_public_mode"
@@ -42,14 +39,35 @@ def _elapsed_ms(started: float) -> int:
     return int((time.monotonic() - started) * 1000)
 
 
+def _finish_collect(conn: psycopg.Connection, job: Job, payload: dict[str, Any], summary: dict[str, Any]) -> None:
+    """Dipanggil di dalam transaksi pemanggil: job selesai, job analyze dibuat, status kasus maju."""
+    queue.complete(conn, job, summary)
+    queue.enqueue(
+        conn,
+        case_id=job.case_id,
+        job_type="analyze",
+        payload={
+            "schema_version": SCHEMA_VERSION,
+            "job_type": "analyze",
+            "case_id": job.case_id,
+            "requested_by": payload["requested_by"],
+            "params": dict(DEFAULT_ANALYZE_PARAMS),
+        },
+    )
+    queue.set_case_status(conn, job.case_id, "analyzing")
+
+
 def handle_collect(
     conn: psycopg.Connection, job: Job, payload: dict[str, Any], settings: Settings, started: float
 ) -> dict[str, Any]:
-    # Pemeriksaan kedua setelah middleware Laravel: server publik tidak pernah mengumpulkan data nyata.
+    params = validate_collect_params(payload["params"])
+
+    if params["platform"] == "synthetic":
+        return collect_synthetic(conn, job, payload, settings, started)
+
+    # Data nyata: pemeriksaan kedua setelah middleware Laravel. Server publik tidak pernah mengumpulkan.
     if not settings.is_local:
         raise PayloadError(COLLECT_DISABLED)
-
-    validate_collect_params(payload["params"])
 
     summary = {
         "schema_version": SCHEMA_VERSION,
@@ -57,25 +75,50 @@ def handle_collect(
         "accounts": 0,
         "duplicates_skipped": 0,
         "duration_ms": _elapsed_ms(started),
-        "warnings": ["stub: pengumpulan data belum diimplementasikan"],
+        "warnings": [f"stub: adapter {params['platform']} belum diimplementasikan"],
     }
-
-    # Selesaikan collect, buat job analyze, dan ubah status kasus dalam satu transaksi.
     with conn.transaction():
-        queue.complete(conn, job, summary)
-        queue.enqueue(
-            conn,
-            case_id=job.case_id,
-            job_type="analyze",
-            payload={
-                "schema_version": SCHEMA_VERSION,
-                "job_type": "analyze",
-                "case_id": job.case_id,
-                "requested_by": payload["requested_by"],
-                "params": dict(DEFAULT_ANALYZE_PARAMS),
-            },
-        )
-        queue.set_case_status(conn, job.case_id, "analyzing")
+        _finish_collect(conn, job, payload, summary)
+    return summary
+
+
+def collect_synthetic(
+    conn: psycopg.Connection, job: Job, payload: dict[str, Any], settings: Settings, started: float
+) -> dict[str, Any]:
+    params = payload["params"]
+    pseudo = Pseudonymizer(settings.pseudo_key)
+    dataset = synthetic.generate(params["preset"], params["seed"])
+
+    # Satu transaksi: data, kunci jawaban, dan status job tersimpan bersama atau tidak sama sekali.
+    with conn.transaction():
+        result = ingest(conn, job.case_id, dataset.posts, pseudo)
+
+        answer_rows = [
+            (job.case_id, label, result.account_ids[author])
+            for label, members in dataset.planted.items()
+            for author in members
+            if author in result.account_ids
+        ]
+        if answer_rows:
+            with conn.cursor() as cur:
+                cur.executemany(
+                    """
+                    INSERT INTO demo_ground_truth (case_id, planted_label, account_id)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (case_id, account_id) DO NOTHING
+                    """,
+                    answer_rows,
+                )
+
+        summary = {
+            "schema_version": SCHEMA_VERSION,
+            "posts": result.posts_inserted,
+            "accounts": result.accounts_inserted,
+            "duplicates_skipped": result.duplicates_skipped,
+            "duration_ms": _elapsed_ms(started),
+            "warnings": [],
+        }
+        _finish_collect(conn, job, payload, summary)
 
     return summary
 

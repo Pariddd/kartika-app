@@ -20,7 +20,7 @@ from radar import queue
 from radar.config import Settings, load_settings
 from radar.db import connect
 from radar.handlers import handle
-from radar.payload import PayloadError
+from radar.errors import JobError
 from radar.queue import Job
 
 log = logging.getLogger("radar.worker")
@@ -71,7 +71,7 @@ def process(
         else:
             with Heartbeat(connect_fn, job, settings.worker_id):
                 summary = handle(conn, job, settings)
-    except PayloadError as exc:
+    except JobError as exc:
         log.warning("job %s gagal: %s", job.id, exc)
         queue.fail(conn, job, str(exc))
         return

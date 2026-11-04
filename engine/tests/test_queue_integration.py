@@ -26,7 +26,7 @@ pytestmark = pytest.mark.skipif(not DSN, reason="RADAR_TEST_DSN tidak diisi")
 
 
 def settings(mode: str = "local", worker: str = "uji:1") -> Settings:
-    return Settings(mode, "", 0, "", "", "", 0.1, worker)
+    return Settings(mode, "", 0, "", "", "", 0.1, worker, pseudo_key="kunci-uji-" + "x" * 32)
 
 
 @pytest.fixture
@@ -161,6 +161,57 @@ def test_job_macet_dikembalikan_lalu_gagal_setelah_3_percobaan(conn, make_case):
     assert queue.requeue_stale(conn) == 1
     assert job_row(conn, job_id)["status"] == "failed"
     assert case_status(conn, case_id) == "failed"
+
+
+def test_collect_sintetis_menyimpan_data_terpseudonimisasi_dan_kunci_jawaban(conn, make_case):
+    case_id, job_id = make_case(params={"platform": "synthetic", "preset": "standar", "seed": 42})
+
+    run_once(conn, settings(mode="public"))  # data sintetis boleh dibuat di server publik
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "done", job["error"]
+    summary = job["result_summary"]
+    assert summary["posts"] > 1500 and summary["accounts"] > 900
+    assert case_status(conn, case_id) == "analyzing"
+
+    # Tidak ada ID asli di database.
+    leaked = conn.execute(
+        """
+        SELECT (SELECT count(*) FROM accounts WHERE case_id = %(c)s AND account_key LIKE 'syn-%%') +
+               (SELECT count(*) FROM posts WHERE case_id = %(c)s AND post_key LIKE 'syn-%%') AS n
+        """,
+        {"c": case_id},
+    ).fetchone()["n"]
+    assert leaked == 0
+
+    labels = [r["display_label"] for r in conn.execute(
+        "SELECT display_label FROM accounts WHERE case_id = %s ORDER BY display_label", (case_id,)
+    )]
+    assert labels[0] == "Akun-0001" and labels[-1] == f"Akun-{len(labels):04d}"
+
+    truth = conn.execute(
+        "SELECT planted_label, count(*) AS n FROM demo_ground_truth WHERE case_id = %s GROUP BY 1 ORDER BY 1",
+        (case_id,),
+    ).fetchall()
+    assert [(r["planted_label"], r["n"]) for r in truth] == [("Tanaman A", 38), ("Tanaman B", 24), ("Tanaman C", 17)]
+
+    # Label tidak membocorkan kunci jawaban: anggota Tanaman A tidak bernomor berurutan.
+    numbers = sorted(int(r["display_label"][5:]) for r in conn.execute(
+        """SELECT a.display_label FROM demo_ground_truth g JOIN accounts a ON a.id = g.account_id
+           WHERE g.case_id = %s AND g.planted_label = 'Tanaman A'""", (case_id,)
+    ))
+    assert numbers[-1] - numbers[0] > 38 * 3
+
+
+def test_collect_sintetis_tanpa_pseudo_key_gagal_dengan_pesan_jelas(conn, make_case):
+    case_id, job_id = make_case(params={"platform": "synthetic", "preset": "standar", "seed": 1})
+
+    run_once(conn, Settings("local", "", 0, "", "", "", 0.1, "uji:1"))
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "failed"
+    assert "PSEUDO_KEY" in job["error"]
+    assert conn.execute("SELECT count(*) AS n FROM posts WHERE case_id = %s", (case_id,)).fetchone()["n"] == 0
 
 
 def test_job_running_yang_masih_hidup_tidak_disentuh(conn, make_case):

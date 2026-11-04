@@ -10,12 +10,18 @@ import re
 from datetime import date
 from typing import Any
 
+from radar.errors import PayloadError
+
+__all__ = ["PayloadError", "validate_envelope", "validate_collect_params", "SYNTHETIC_PRESETS"]
+
 SCHEMA_VERSION = 1
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 MAX_VIDEO_IDS = 10
 YOUTUBE_MAX_ITEMS = 5000
 X_MAX_ITEMS = 1000
 QUERY_MAX_LENGTH = 200
+SYNTHETIC_PRESETS = ("standar", "kontrol", "parafrase")
+MAX_SEED = 2**31 - 1
 
 DEFAULT_ANALYZE_PARAMS: dict[str, Any] = {
     "min_signals": 2,
@@ -28,8 +34,6 @@ DEFAULT_ANALYZE_PARAMS: dict[str, Any] = {
 }
 
 
-class PayloadError(ValueError):
-    """Payload tidak sesuai kontrak. Pesan dipakai sebagai analysis_jobs.error."""
 
 
 def _is_int(value: Any) -> bool:
@@ -89,6 +93,14 @@ def validate_collect_params(params: dict[str, Any]) -> dict[str, Any]:
         until = _check_date("until", params.get("until"))
         if since and until and until < since:
             raise PayloadError("until tidak boleh sebelum since")
+        return params
+
+    if platform == "synthetic":
+        if params.get("preset") not in SYNTHETIC_PRESETS:
+            raise PayloadError("preset sintetis harus salah satu dari: " + ", ".join(SYNTHETIC_PRESETS))
+        seed = params.get("seed")
+        if not _is_int(seed) or not 0 <= seed <= MAX_SEED:
+            raise PayloadError(f"seed harus bilangan bulat 0-{MAX_SEED}")
         return params
 
     raise PayloadError("platform tidak dikenal")

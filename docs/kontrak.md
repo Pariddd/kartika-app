@@ -61,7 +61,7 @@ Bawaan Laravel, ditambah `role` enum: `admin`, `analis`, `demo`.
 | case_id | FK cases, on delete cascade | |
 | platform | enum `x`, `youtube`, `csv`, `synthetic` | |
 | account_key | char(64) | HMAC-SHA256 dari `platform:author_id` |
-| display_label | varchar(16) | `Akun-0001`, berurutan per kasus |
+| display_label | varchar(16) | `Akun-0001`, berurutan per kasus menurut waktu post pertama akun (bukan urutan data masuk), agar label tidak membocorkan pengelompokan |
 | account_created_at | timestamptz null | hanya X atau CSV `tanggal_akun` |
 | followers | integer null | |
 | following | integer null | |
@@ -75,7 +75,7 @@ Bawaan Laravel, ditambah `role` enum: `admin`, `analis`, `demo`.
 | account_id | FK accounts | |
 | platform | enum sama dengan `accounts` | |
 | post_key | char(64) | HMAC dari `platform:post_id` |
-| text | text | mention sudah dipseudonimisasi |
+| text | text | mention `@nama` diganti `@u_` + 8 hex HMAC (konsisten, tidak peka huruf besar-kecil); maksimal 5.000 karakter |
 | posted_at | timestamptz | |
 | reply_to_key | char(64) null | |
 | conversation_key | char(64) null | |
@@ -162,6 +162,22 @@ X via Apify (aktif hanya setelah izin panitia):
   }
 }
 ```
+
+Sintetis (data demo dengan kunci jawaban; **boleh** di mode publik karena bukan data nyata). Dibuat lewat `php artisan radar:demo {preset} --seed=N`:
+```json
+{
+  "schema_version": 1,
+  "job_type": "collect",
+  "case_id": 14,
+  "requested_by": 1,
+  "params": {
+    "platform": "synthetic",
+    "preset": "standar",
+    "seed": 42
+  }
+}
+```
+`preset`: `standar` (3 klaster tanaman + pengecoh sah), `kontrol` (hanya organik + pengecoh), `parafrase` (2 klaster berparafrase tinggi). `seed`: 0–2147483647; seed sama menghasilkan data identik.
 
 Batas, dicek di Laravel **dan** Python:
 - `max_items`: 1–1000 untuk X, 1–5000 untuk YouTube.

@@ -68,3 +68,22 @@ def test_x_valid():
 def test_collect_params_ditolak(params):
     with pytest.raises(PayloadError):
         validate_collect_params(params)
+
+
+def test_sintetis_valid():
+    params = {"platform": "synthetic", "preset": "standar", "seed": 42}
+    assert validate_collect_params(params) is params
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"platform": "synthetic", "preset": "rahasia", "seed": 1},
+        {"platform": "synthetic", "preset": "standar", "seed": -1},
+        {"platform": "synthetic", "preset": "standar", "seed": "42"},
+        {"platform": "synthetic", "preset": "standar"},
+    ],
+)
+def test_sintetis_ditolak(params):
+    with pytest.raises(PayloadError):
+        validate_collect_params(params)
