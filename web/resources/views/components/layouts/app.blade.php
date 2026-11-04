@@ -1,0 +1,52 @@
+@props(['title' => null])
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ $title ? $title.' · Radar Narasi' : 'Radar Narasi' }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="min-h-screen bg-paper font-sans text-ink antialiased">
+    <header class="bg-ink text-paper">
+        <div class="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-2.5">
+            <a href="{{ route('cases.index') }}" class="flex items-center gap-2.5 text-paper">
+                <x-logo class="size-7 text-[#e7b27a]" />
+                <span class="text-lg font-semibold">Radar Narasi</span>
+            </a>
+
+            <nav aria-label="Navigasi utama" class="flex flex-wrap gap-1">
+                <a href="{{ route('cases.index') }}"
+                   @class([
+                       'inline-flex min-h-11 items-center rounded-md px-3.5 text-sm',
+                       'bg-white/10 font-medium text-white' => request()->routeIs('cases.*'),
+                       'text-[#d7dcd6] hover:text-white' => ! request()->routeIs('cases.*'),
+                   ])
+                   @if (request()->routeIs('cases.*')) aria-current="page" @endif>
+                    Kasus
+                </a>
+            </nav>
+
+            <div class="flex items-center gap-3 text-sm text-[#d7dcd6]">
+                <span>{{ auth()->user()->name }}</span>
+                <span class="rounded-full border border-[#5c6a61] px-2 py-0.5 text-xs">
+                    peran: {{ auth()->user()->role->label() }}
+                </span>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="inline-flex min-h-11 items-center rounded-md px-3 text-sm text-[#d7dcd6] hover:bg-white/10 hover:text-white">
+                        Keluar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <x-mode-banner />
+
+    <main class="mx-auto max-w-7xl px-6 py-8">
+        {{ $slot }}
+    </main>
+</body>
+</html>

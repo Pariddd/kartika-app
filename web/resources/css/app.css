@@ -3,7 +3,22 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/* Token desain Radar Narasi. Biru = organik, oranye = dari klaster terkoordinasi. */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --color-ink: #17201c;
+    --color-paper: #f4f5f2;
+    --color-muted: #56605a;
+    --color-line: #d9ddd6;
+    --color-brand: #33452f;
+    --color-brand-dark: #263423;
+    --color-organic: #1d5fa8;
+    --color-coord: #c2620c;
+    --color-coord-ink: #8a3d06;
+    --color-coord-soft: #fdf1e4;
+    --color-info-soft: #e8f0fa;
+    --color-info-line: #c9daf0;
+    --color-info-ink: #17407a;
 }
