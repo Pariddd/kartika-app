@@ -101,11 +101,82 @@ def test_alur_lengkap_collect_lalu_analyze(conn, make_case):
     analyze_job = run_once(conn, settings())
     assert analyze_job.job_type == "analyze"
     analyze = job_row(conn, analyze_job.id)
-    assert analyze["status"] == "done"
+    assert analyze["status"] == "done", analyze["error"]
     assert analyze["payload"]["params"]["min_signals"] == 2
+    assert "tidak ada post untuk dianalisis" in analyze["result_summary"]["warnings"]
     assert case_status(conn, case_id) == "done"
 
     assert run_once(conn, settings()) is None
+
+
+def test_demo_sintetis_dianalisis_dan_hasil_tersimpan_sesuai_kontrak(conn, make_case):
+    case_id, _ = make_case(params={"platform": "synthetic", "preset": "standar", "seed": 4})
+
+    run_once(conn, settings())  # collect sintetis
+    analyze_job = run_once(conn, settings())
+    summary = job_row(conn, analyze_job.id)["result_summary"]
+
+    assert job_row(conn, analyze_job.id)["status"] == "done"
+    assert summary["flagged"] == 3
+    assert 0 < summary["organic_score"] < 1
+    assert case_status(conn, case_id) == "done"
+
+    clusters = conn.execute(
+        "SELECT * FROM clusters WHERE case_id = %s ORDER BY display_label", (case_id,)
+    ).fetchall()
+    assert len(clusters) == summary["clusters"]
+    assert sum(c["is_flagged"] for c in clusters) == 3
+    for cluster in clusters:
+        rows = conn.execute("SELECT signal, active FROM cluster_signals WHERE cluster_id = %s", (cluster["id"],)).fetchall()
+        assert sorted(r["signal"] for r in rows) == ["infra", "profile", "text", "time"]
+        assert sum(r["active"] for r in rows) == cluster["signals_active"]
+        assert cluster["is_flagged"] == (cluster["signals_active"] >= 2)
+
+    # Setiap klaster tanaman cocok dengan satu klaster yang ditandai (Jaccard >= 0,5).
+    overlap = conn.execute(
+        """
+        SELECT g.planted_label, max(cnt)::float / min(planted) AS best
+        FROM (
+            SELECT g.planted_label, c.id, count(*) AS cnt, (SELECT count(*) FROM demo_ground_truth x
+                   WHERE x.case_id = g.case_id AND x.planted_label = g.planted_label) AS planted
+            FROM demo_ground_truth g
+            JOIN cluster_members m ON m.account_id = g.account_id
+            JOIN clusters c ON c.id = m.cluster_id AND c.is_flagged
+            WHERE g.case_id = %s
+            GROUP BY g.planted_label, c.id, g.case_id
+        ) g GROUP BY g.planted_label
+        """,
+        (case_id,),
+    ).fetchall()
+    assert len(overlap) == 3 and all(r["best"] >= 0.5 for r in overlap)
+
+    # ID dalam bukti teks benar-benar post milik kasus ini.
+    evidence = conn.execute(
+        """SELECT s.evidence FROM cluster_signals s JOIN clusters c ON c.id = s.cluster_id
+           WHERE c.case_id = %s AND s.signal = 'text' AND c.display_label = 'K-01'""",
+        (case_id,),
+    ).fetchone()["evidence"]
+    post_ids = {i for p in evidence["top_pairs"] for i in (p["post_a"], p["post_b"])}
+    found = conn.execute("SELECT count(*) AS n FROM posts WHERE case_id = %s AND id = ANY(%s)", (case_id, list(post_ids))).fetchone()["n"]
+    assert post_ids and found == len(post_ids)
+
+    score = conn.execute("SELECT * FROM issue_scores WHERE case_id = %s", (case_id,)).fetchone()
+    assert float(score["organic_score"]) == pytest.approx(summary["organic_score"])
+
+
+def test_analisis_ulang_mengganti_hasil_lama(conn, make_case):
+    case_id, _ = make_case(params={"platform": "synthetic", "preset": "standar", "seed": 4})
+    run_once(conn, settings())
+    run_once(conn, settings())
+    first = conn.execute("SELECT count(*) AS n FROM clusters WHERE case_id = %s", (case_id,)).fetchone()["n"]
+
+    queue.enqueue(conn, case_id=case_id, job_type="analyze", payload={
+        "schema_version": 1, "job_type": "analyze", "case_id": case_id, "requested_by": 1, "params": {},
+    })
+    run_once(conn, settings())
+
+    assert conn.execute("SELECT count(*) AS n FROM clusters WHERE case_id = %s", (case_id,)).fetchone()["n"] == first
+    assert conn.execute("SELECT count(*) AS n FROM issue_scores WHERE case_id = %s", (case_id,)).fetchone()["n"] == 1
 
 
 def test_mode_publik_menolak_collect(conn, make_case):

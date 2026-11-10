@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CaseController;
+use App\Http\Controllers\ClusterController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -27,7 +28,25 @@ Route::middleware('auth')->group(function () {
             ->whereNumber('case')
             ->middleware('can:view,case')
             ->name('cases.show');
+
+        Route::get('/kasus/{case}/jawaban', [CaseController::class, 'answer'])
+            ->whereNumber('case')
+            ->middleware('can:view,case')
+            ->name('cases.answer');
+
+        // scopeBindings: klaster wajib milik kasus di URL, jika tidak 404.
+        Route::get('/kasus/{case}/klaster/{cluster}', [ClusterController::class, 'show'])
+            ->whereNumber(['case', 'cluster'])
+            ->middleware('can:view,case')
+            ->scopeBindings()
+            ->name('clusters.show');
     });
+
+    Route::post('/kasus/{case}/klaster/{cluster}/penilaian', [ClusterController::class, 'review'])
+        ->whereNumber(['case', 'cluster'])
+        ->middleware(['can:view,case', 'throttle:30,1'])
+        ->scopeBindings()
+        ->name('clusters.review');
 
     // Pencatatan audit untuk store dilakukan di controller, karena ID kasus baru ada setelah disimpan.
     Route::post('/kasus', [CaseController::class, 'store'])

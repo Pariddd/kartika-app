@@ -34,6 +34,12 @@ return [
     'display_timezone' => 'Asia/Jakarta',
 
     /*
+    | Mode presentasi: teks post dan domain dari kasus data nyata disamarkan di layar
+    | (untuk demo di depan juri). Angka dan bukti struktural tetap tampil.
+    */
+    'presentation_mask' => (bool) env('RADAR_PRESENTATION_MASK', false),
+
+    /*
     | Akun awal untuk seeder. Kata sandi wajib diisi di .env (minimal 8 karakter);
     | tidak ada kata sandi bawaan.
     */

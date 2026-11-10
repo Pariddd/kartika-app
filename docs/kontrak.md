@@ -200,7 +200,8 @@ Batas, dicek di Laravel **dan** Python:
     "time_window_seconds": 300,
     "min_co_events": 3,
     "minhash_threshold": 0.8,
-    "embedding_threshold": 0.85,
+    "tfidf_threshold": 0.6,
+    "min_shared_texts": 2,
     "seed": 42
   }
 }
@@ -259,36 +260,38 @@ Untuk `collect`: `posts`, `accounts`, `duplicates_skipped`, `duration_ms`, `warn
 
 ## 6. `cluster_signals.evidence`
 
-ID di bukti adalah `posts.id` atau `accounts.id` internal, tidak pernah ID asli platform.
+ID di bukti adalah `posts.id` atau `accounts.id` internal, tidak pernah ID asli platform. Setiap baris `cluster_signals` hanya memuat objek untuk sinyalnya sendiri.
 
+**Kepadatan pasangan** (`pair_ratio`) = proporsi pasangan akun dalam klaster yang punya bukti. `baseline_ratio` = proporsi yang sama untuk seluruh pasangan akun di kasus. Sinyal teks dan waktu aktif bila kepadatan ≥ 0,3 **dan** minimal 5 kali baseline.
+
+`text`:
 ```json
-{
-  "text": {
-    "pair_ratio": 0.64,
-    "baseline_ratio": 0.03,
-    "top_pairs": [
-      {"post_a": 101, "post_b": 205, "method": "minhash", "score": 0.93}
-    ]
-  },
-  "time": {
-    "window_seconds": 300,
-    "events": [
-      {"start": "2026-11-01T12:00:00Z", "accounts": 29}
-    ],
-    "accounts_in_min_events": 31
-  },
-  "profile": {
-    "created_at_iqr_days": 410,
-    "baseline_iqr_days": 380
-  },
-  "infra": {
-    "domains": [
-      {"domain": "contoh.example", "accounts": 27, "age_days_at_first_post": 9}
-    ]
-  }
-}
+{"pair_ratio": 0.9, "baseline_ratio": 0.0004, "similar_post_pairs": 812,
+ "top_pairs": [{"post_a": 101, "post_b": 205, "method": "minhash", "score": 0.93}]}
 ```
-Setiap baris `cluster_signals` hanya memuat objek untuk sinyalnya sendiri (misalnya baris `text` hanya berisi isi objek `text`).
+`method`: `minhash` (nyaris identik) atau `tfidf` (parafrase ringan).
+
+`time` (aktif juga mensyaratkan minimal `min_co_events` kejadian):
+```json
+{"window_seconds": 300, "pair_ratio": 0.87, "baseline_ratio": 0.0001,
+ "events": [{"start": "2026-11-01T05:00:00Z", "accounts": 29}], "accounts_in_min_events": 38}
+```
+
+`profile` (aktif bila ≥ 5 akun dan ≥ 50% anggota dibuat dalam jendela 30 hari yang sama, dan minimal 5 kali baseline):
+```json
+{"available": true, "window_days": 30, "window_start": "2026-10-10T03:12:00Z",
+ "accounts_in_window": 38, "member_share": 0.95, "baseline_share": 0.06}
+```
+Bila tanggal pembuatan akun tidak ada (misalnya YouTube): `{"available": false, "coverage": 0.0}`.
+
+`infra` (domain khas: dibagikan ≥ 3 akun dan ≥ 30% anggota, tetapi ≤ 2% akun lain):
+```json
+{"domains": [{"domain": "contoh.example", "accounts": 27, "member_share": 0.68,
+  "other_share": 0.0, "distinctive": true, "age_days_at_first_post": null}]}
+```
+`age_days_at_first_post` diisi lewat RDAP (tier Bonus).
+
+**Skor koordinasi** klaster = rata-rata `strength` keempat sinyal (0–1). **Skor keorganikan** kasus = 1 − (post milik anggota klaster yang ditandai ÷ seluruh post). Analisis ulang mengganti seluruh klaster dan skor kasus tersebut; penilaian analis atas klaster lama ikut terhapus.
 
 ## 7. Aturan pencocokan evaluasi
 

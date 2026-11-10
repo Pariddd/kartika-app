@@ -29,7 +29,8 @@ DEFAULT_ANALYZE_PARAMS: dict[str, Any] = {
     "time_window_seconds": 300,
     "min_co_events": 3,
     "minhash_threshold": 0.8,
-    "embedding_threshold": 0.85,
+    "tfidf_threshold": 0.6,
+    "min_shared_texts": 2,
     "seed": 42,
 }
 

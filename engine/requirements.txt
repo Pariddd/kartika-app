@@ -1,3 +1,7 @@
 # Worker Radar Narasi. Python 3.10+.
 psycopg[binary]>=3.2,<3.3
 python-dotenv>=1.0,<2
+numpy>=1.26,<2.3
+scikit-learn>=1.5,<1.8
+networkx>=3.2,<3.5
+datasketch>=1.6,<2

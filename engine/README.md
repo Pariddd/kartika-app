@@ -31,6 +31,10 @@ RADAR_TEST_DSN="host=127.0.0.1 dbname=radar_narasi user=radar_web password=..." 
 
 ## Status
 
-Tahap stub: alur antrean lengkap (collect → analyze → selesai) tetapi belum mengambil
-data dan belum menganalisis. Adapter YouTube dan modul analisis mengganti isi
-`radar/handlers.py` di tahap berikutnya.
+- collect `synthetic`: membuat dataset demo + kunci jawaban (`php artisan radar:demo`).
+- collect `youtube`/`x`: stub sampai adapter dibuat.
+- analyze: MinHash + TF-IDF karakter (teks), ko-aktivitas waktu, graf + Louvain,
+  empat sinyal terhadap baseline (`radar/analysis/`). Embedding multibahasa menyusul.
+
+Kalibrasi awal (10 seed per preset sintetis): semua klaster tanaman tertangkap, tanpa salah
+tanda, pengecoh sah tidak ditandai. Ini hasil pada data sintetis buatan tim, bukan akurasi dunia nyata.

@@ -9,6 +9,7 @@ use App\Enums\JobType;
 use App\Http\Requests\StoreCaseRequest;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
+use App\Support\AnswerKey;
 use App\Support\JobPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,10 +77,32 @@ class CaseController extends Controller
 
     public function show(CaseFile $case): View
     {
+        return $this->renderShow($case, answer: null);
+    }
+
+    /**
+     * Kunci jawaban baru dimuat saat diminta, dan hanya untuk kasus sintetis.
+     */
+    public function answer(CaseFile $case): View
+    {
+        abort_unless($case->mode === CaseMode::Demo, 404);
+
+        return $this->renderShow($case, answer: AnswerKey::evaluate($case));
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $answer
+     */
+    private function renderShow(CaseFile $case, ?array $answer): View
+    {
         $case->load([
             'creator',
             'latestIssueScore',
             'jobs' => fn ($query) => $query->latest('id'),
+            'clusters' => fn ($query) => $query
+                ->with(['signals', 'latestReview'])
+                ->orderByDesc('is_flagged')
+                ->orderBy('display_label'),
         ])->loadCount([
             'posts',
             'clusters as flagged_clusters_count' => fn ($query) => $query->where('is_flagged', true),
@@ -88,9 +111,16 @@ class CaseController extends Controller
         $isProcessing = $case->status->isActive()
             || $case->jobs->contains(fn ($job) => $job->status->isActive());
 
+        $hasAnswerKey = $case->mode === CaseMode::Demo
+            && DB::table('demo_ground_truth')->where('case_id', $case->getKey())->exists();
+
         return view('cases.show', [
             'case' => $case,
             'isProcessing' => $isProcessing,
+            'flagged' => $case->clusters->where('is_flagged', true)->values(),
+            'unflagged' => $case->clusters->where('is_flagged', false)->values(),
+            'hasAnswerKey' => $hasAnswerKey,
+            'answer' => $answer,
         ]);
     }
 }

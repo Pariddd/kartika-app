@@ -2,7 +2,7 @@
 
 - collect sintetis: membuat dataset demo beserta kunci jawaban (boleh di mode publik).
 - collect YouTube/X: masih stub sampai adapter dibuat (hanya mode lokal).
-- analyze: masih stub sampai modul sinyal dibuat.
+- analyze: kemiripan teks + ko-aktivitas waktu -> klaster -> empat sinyal (radar.analysis).
 """
 
 from __future__ import annotations
@@ -13,6 +13,9 @@ from typing import Any
 import psycopg
 
 from radar import queue, synthetic
+from radar.analysis import store
+from radar.analysis.model import Params
+from radar.analysis.pipeline import analyze
 from radar.config import Settings
 from radar.errors import PayloadError
 from radar.ingest import ingest
@@ -126,26 +129,23 @@ def collect_synthetic(
 def handle_analyze(
     conn: psycopg.Connection, job: Job, payload: dict[str, Any], started: float
 ) -> dict[str, Any]:
-    counts = conn.execute(
-        """
-        SELECT (SELECT count(*) FROM posts WHERE case_id = %(case)s) AS posts,
-               (SELECT count(*) FROM accounts WHERE case_id = %(case)s) AS accounts
-        """,
-        {"case": job.case_id},
-    ).fetchone()
+    params = Params.from_payload(payload["params"])
+    posts, accounts = store.load_case(conn, job.case_id)
+    result = analyze(posts, accounts, params)
 
     summary = {
         "schema_version": SCHEMA_VERSION,
-        "posts": int(counts["posts"]),
-        "accounts": int(counts["accounts"]),
-        "clusters": 0,
-        "flagged": 0,
-        "organic_score": None,
+        "posts": result.total_posts,
+        "accounts": result.total_accounts,
+        "clusters": len(result.clusters),
+        "flagged": len(result.flagged),
+        "organic_score": round(result.organic_score, 3),
         "duration_ms": _elapsed_ms(started),
-        "warnings": ["stub: analisis belum diimplementasikan"],
+        "warnings": result.warnings,
     }
 
     with conn.transaction():
+        store.save(conn, job.case_id, job.id, result)
         queue.complete(conn, job, summary)
         queue.set_case_status(conn, job.case_id, "done")
 
