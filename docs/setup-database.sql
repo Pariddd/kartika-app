@@ -6,6 +6,7 @@
 --   2. Jalankan "php artisan migrate" dari folder web/ (memakai user radar_web).
 --   3. Jalankan BAGIAN B sebagai superuser (postgres), tersambung ke database "radar_narasi".
 --   4. Jalankan BAGIAN C untuk menguji.
+--   Cek encoding: SHOW server_encoding;  -- harus UTF8
 --
 -- PENTING: setiap kali menjalankan "php artisan migrate:fresh", ulangi BAGIAN B.
 -- migrate:fresh membuat ulang tabel; hak default (ALTER DEFAULT PRIVILEGES) memang
@@ -20,7 +21,10 @@
 ------------------------------------------------------------
 CREATE ROLE radar_web    LOGIN PASSWORD 'GANTI_PASSWORD_WEB';
 CREATE ROLE radar_engine LOGIN PASSWORD 'GANTI_PASSWORD_ENGINE';
-CREATE DATABASE radar_narasi OWNER radar_web;   -- butuh Auto-Commit aktif di DBeaver
+-- ENCODING 'UTF8' wajib: tanpa ini PostgreSQL di Windows memakai WIN1252 dan tidak bisa menyimpan emoji.
+-- LC_COLLATE/LC_CTYPE 'C' dipakai karena locale Windows ("English_United States.1252") tidak cocok dengan UTF8.
+CREATE DATABASE radar_narasi OWNER radar_web
+  ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;   -- butuh Auto-Commit aktif di DBeaver
 
 ------------------------------------------------------------
 -- BAGIAN B — hak akses radar_engine (setelah migrate)

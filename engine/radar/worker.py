@@ -18,9 +18,9 @@ import psycopg
 
 from radar import queue
 from radar.config import Settings, load_settings
-from radar.db import connect
+from radar.db import check_encoding, connect
 from radar.handlers import handle
-from radar.errors import JobError
+from radar.errors import ConfigError, JobError
 from radar.queue import Job
 
 log = logging.getLogger("radar.worker")
@@ -112,9 +112,11 @@ def run(settings: Settings, *, once: bool = False) -> None:
     connect_fn = lambda: connect(settings)  # noqa: E731
     last_stale_check = 0.0
 
+
     while not stopping.is_set():
         try:
             with connect_fn() as conn:
+                check_encoding(conn)
                 while not stopping.is_set():
                     if time.monotonic() - last_stale_check >= STALE_CHECK_SECONDS:
                         requeued = queue.requeue_stale(conn)
@@ -129,6 +131,9 @@ def run(settings: Settings, *, once: bool = False) -> None:
                         return
                     if job is None:
                         stopping.wait(settings.poll_seconds)
+        except ConfigError as exc:
+            log.error("worker dihentikan: %s", exc)
+            raise SystemExit(1) from exc
         except psycopg.OperationalError as exc:
             log.error("koneksi database gagal: %s. Mencoba lagi dalam 10 detik.", exc)
             if once or stopping.wait(10):
