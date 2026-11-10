@@ -10,10 +10,12 @@ use App\Http\Requests\StoreCaseRequest;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Support\AnswerKey;
+use App\Support\CaseTimeline;
 use App\Support\JobPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class CaseController extends Controller
@@ -121,6 +123,36 @@ class CaseController extends Controller
             'unflagged' => $case->clusters->where('is_flagged', false)->values(),
             'hasAnswerKey' => $hasAnswerKey,
             'answer' => $answer,
+            'timeline' => CaseTimeline::build($case),
         ]);
+    }
+
+    /**
+     * Menghapus kasus beserta seluruh datanya (post, akun, klaster, penilaian) lewat ON DELETE CASCADE.
+     * Ditolak selama worker masih memproses kasus ini.
+     */
+    public function destroy(Request $request, CaseFile $case): RedirectResponse
+    {
+        $request->validate(['confirm' => ['accepted']], ['confirm.accepted' => 'Centang kotak konfirmasi untuk menghapus kasus.']);
+
+        if ($case->jobs()->where('status', JobStatus::Running->value)->exists()) {
+            return back()->withErrors(['confirm' => 'Kasus sedang diproses worker. Tunggu sampai selesai, lalu hapus.']);
+        }
+
+        // File unggahan yang belum sempat dibaca worker ikut dihapus.
+        foreach ($case->jobs()->where('job_type', JobType::AnalyzeCsv->value)->get() as $job) {
+            $fileRef = $job->payload['params']['file_ref'] ?? null;
+            if (is_string($fileRef) && preg_match('#^uploads/[0-9a-f-]{36}\.csv$#', $fileRef)) {
+                Storage::disk('local')->delete($fileRef);
+            }
+        }
+
+        $name = $case->displayName();
+        $case->delete();
+
+        // case_id sengaja null: barisnya sudah tidak ada. Jejak siapa dan kapan tetap tercatat.
+        AuditLog::record('cases.destroy', $request->user()->getKey(), null, $request->ip(), 200);
+
+        return redirect()->route('cases.index')->with('status', "Kasus \"{$name}\" dan seluruh datanya dihapus.");
     }
 }

@@ -100,7 +100,7 @@ def collect_youtube(
     params = payload["params"]
     # Pseudonymizer dibuat lebih dulu: tanpa PSEUDO_KEY, tidak ada satu pun permintaan ke API.
     pseudo = Pseudonymizer(settings.pseudo_key)
-    client = youtube.YouTubeClient(settings.youtube_api_key)
+    client = youtube.YouTubeClient(settings.youtube_api_key, include_names=settings.names_enabled)
 
     # Pengambilan data di luar transaksi: tidak ada kunci database yang ditahan selama menunggu jaringan.
     collected = client.collect(params["video_ids"], params["max_items"])
@@ -112,13 +112,14 @@ def collect_youtube(
         warnings.append(f"batas max_items ({params['max_items']}) tercapai; komentar lain tidak diambil")
 
     with conn.transaction():
-        result = ingest(conn, job.case_id, collected.posts, pseudo)
+        result = ingest(conn, job.case_id, collected.posts, pseudo, store_names=settings.names_enabled)
         summary = {
             "schema_version": SCHEMA_VERSION,
             "posts": result.posts_inserted,
             "accounts": result.accounts_inserted,
             "duplicates_skipped": result.duplicates_skipped,
             "api_requests": collected.requests,
+            "names_stored": settings.names_enabled,
             "duration_ms": _elapsed_ms(started),
             "warnings": warnings,
         }

@@ -31,6 +31,13 @@ class Settings:
     pseudo_key: str = field(default="", repr=False)
     upload_dir: str = ""
     youtube_api_key: str = field(default="", repr=False)
+    # Nama tampilan akun (bukan ID atau URL) ikut disimpan untuk kasus data nyata.
+    # Mati secara bawaan; hanya berlaku di mode lokal. Lihat docs/aturan-kerja.md.
+    store_account_names: bool = False
+
+    @property
+    def names_enabled(self) -> bool:
+        return self.store_account_names and self.app_mode == LOCAL
 
     @property
     def is_local(self) -> bool:
@@ -53,4 +60,5 @@ def load_settings(env_file: Path | None = None) -> Settings:
         pseudo_key=os.getenv("PSEUDO_KEY", ""),
         upload_dir=os.getenv("RADAR_UPLOAD_DIR", ""),
         youtube_api_key=os.getenv("YOUTUBE_API_KEY", "").strip(),
+        store_account_names=os.getenv("RADAR_STORE_ACCOUNT_NAMES", "").strip().lower() == "true",
     )

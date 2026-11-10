@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureLocalMode;
 use App\Http\Middleware\RecordAuditLog;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'mode.local' => EnsureLocalMode::class,
             'audit' => RecordAuditLog::class,
         ]);
+
+        $middleware->web(append: [SecurityHeaders::class]);
 
         $middleware->redirectGuestsTo(fn () => route('login'));
         $middleware->redirectUsersTo(fn () => route('cases.index'));

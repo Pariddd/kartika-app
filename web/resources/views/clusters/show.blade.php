@@ -74,7 +74,7 @@
                     @foreach ([$pair['post_a'], $pair['post_b']] as $postId)
                         @php $post = $posts->get($postId); @endphp
                         <div class="flex flex-col gap-1.5 rounded-lg bg-[#fafbf9] px-3.5 py-3">
-                            <span class="font-mono text-xs text-muted">{{ $post?->account?->display_label ?? '–' }} · {{ Format::wib($post?->posted_at) }}</span>
+                            <span class="font-mono text-xs text-muted">{{ $post?->account?->display_label ?? '–' }}@if ($showNames && $post?->account?->display_name) <span class="font-sans text-ink">({{ $post->account->display_name }})</span>@endif · {{ Format::wib($post?->posted_at) }}</span>
                             @if ($masked)
                                 <p class="text-[15px] italic text-muted">[teks disamarkan · mode presentasi]</p>
                             @elseif ($post === null)
@@ -138,10 +138,16 @@
 
     <section aria-labelledby="judul-anggota" class="mt-6 rounded-xl border border-line bg-white p-5">
         <h2 id="judul-anggota" class="text-lg font-semibold">Anggota ({{ $cluster->members->count() }} akun)</h2>
-        <p class="text-sm text-muted">Label akun dibuat per kasus; identitas asli tidak disimpan.</p>
+        <p class="text-sm text-muted">
+            @if ($showNames)
+                Nama tampilan diperlihatkan karena fitur nama akun dinyalakan di mode lokal; ID dan URL profil tidak disimpan. Akses ini tercatat di log audit.
+            @else
+                Label akun dibuat per kasus; ID asli dan URL profil tidak disimpan.
+            @endif
+        </p>
         <ul class="mt-3 flex flex-wrap gap-2">
             @foreach ($cluster->members as $member)
-                <li class="rounded bg-paper px-2 py-1 font-mono text-xs">{{ $member->display_label }} <span class="text-muted">· {{ $member->posts_count }} post</span></li>
+                <li class="rounded bg-paper px-2 py-1 font-mono text-xs">{{ $member->display_label }}@if ($showNames && $member->display_name) <span class="font-sans text-ink">{{ $member->display_name }}</span>@endif <span class="text-muted">· {{ $member->posts_count }} post</span></li>
             @endforeach
         </ul>
     </section>

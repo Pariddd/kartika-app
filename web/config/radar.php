@@ -40,6 +40,13 @@ return [
     'presentation_mask' => (bool) env('RADAR_PRESENTATION_MASK', false),
 
     /*
+    | Tampilkan nama tampilan akun pada kasus data nyata. Hanya berlaku di mode lokal,
+    | untuk admin dan analis, dan selalu kalah oleh mode presentasi. Pasangannya di
+    | engine/.env adalah RADAR_STORE_ACCOUNT_NAMES (tanpa itu nama tidak pernah disimpan).
+    */
+    'show_account_names' => (bool) env('RADAR_SHOW_ACCOUNT_NAMES', false),
+
+    /*
     | Akun awal untuk seeder. Kata sandi wajib diisi di .env (minimal 8 karakter);
     | tidak ada kata sandi bawaan.
     */

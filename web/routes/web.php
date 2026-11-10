@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CaseController;
 use App\Http\Controllers\CaseReportController;
 use App\Http\Controllers\ClusterController;
+use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,8 @@ Route::middleware('auth')->group(function () {
             ->scopeBindings()
             ->name('clusters.show');
 
+        Route::get('/evaluasi', [EvaluationController::class, 'show'])->name('evaluation.show');
+
         // Log audit: hanya admin. Akses yang ditolak juga tercatat.
         Route::get('/audit', [AuditLogController::class, 'index'])
             ->middleware('can:view-audit-log')
@@ -67,6 +70,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/coba', [UploadController::class, 'store'])->middleware('throttle:5,1')->name('upload.store');
 
     // Pencatatan audit untuk store dilakukan di controller, karena ID kasus baru ada setelah disimpan.
+    Route::delete('/kasus/{case}', [CaseController::class, 'destroy'])
+        ->whereNumber('case')
+        ->middleware(['can:delete,case', 'throttle:20,1'])
+        ->name('cases.destroy');
+
     Route::post('/kasus', [CaseController::class, 'store'])
         ->middleware(['mode.local', 'can:collect-data', 'throttle:10,1'])
         ->name('cases.store');

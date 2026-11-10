@@ -18,6 +18,8 @@ from radar.pseudo import Pseudonymizer
 
 MAX_TEXT_LENGTH = 5000
 MAX_URLS = 20
+MAX_NAME_LENGTH = 100
+CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2066-\u2069]")
 URL = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 
 
@@ -36,6 +38,8 @@ class RawPost:
     reply_to_id: str | None = None
     conversation_id: str | None = None
     urls: tuple[str, ...] = ()
+    # Nama tampilan penulis; hanya disimpan bila ingest dipanggil dengan store_names=True.
+    author_name: str | None = None
 
 
 @dataclass
@@ -52,12 +56,27 @@ def extract_urls(text: str) -> list[str]:
     return list(dict.fromkeys(urls))[:MAX_URLS]
 
 
+def clean_name(name: str | None) -> str | None:
+    """Buang karakter kontrol dan pembalik arah teks (bisa mengacaukan tampilan), batasi panjang."""
+    if not name:
+        return None
+    cleaned = CONTROL_CHARS.sub("", name).strip()[:MAX_NAME_LENGTH]
+    return cleaned or None
+
+
 def _require_aware(value: datetime | None, name: str) -> None:
     if value is not None and value.tzinfo is None:
         raise ValueError(f"{name} harus punya zona waktu (docs/kontrak.md bagian 1)")
 
 
-def ingest(conn: psycopg.Connection, case_id: int, posts: Iterable[RawPost], pseudo: Pseudonymizer) -> IngestResult:
+def ingest(
+    conn: psycopg.Connection,
+    case_id: int,
+    posts: Iterable[RawPost],
+    pseudo: Pseudonymizer,
+    *,
+    store_names: bool = False,
+) -> IngestResult:
     posts = list(posts)
     for post in posts:
         _require_aware(post.posted_at, "posted_at")
@@ -87,7 +106,10 @@ def ingest(conn: psycopg.Connection, case_id: int, posts: Iterable[RawPost], pse
             if key in existing:
                 continue
             new_accounts.append(
-                (case_id, platform, key, f"Akun-{next_label:04d}", post.account_created_at, post.followers, post.following)
+                (
+                    case_id, platform, key, f"Akun-{next_label:04d}", post.account_created_at, post.followers, post.following,
+                    clean_name(post.author_name) if store_names else None,
+                )
             )
             existing[key] = None
             next_label += 1
@@ -96,8 +118,8 @@ def ingest(conn: psycopg.Connection, case_id: int, posts: Iterable[RawPost], pse
             with conn.cursor() as cur:
                 cur.executemany(
                     """
-                    INSERT INTO accounts (case_id, platform, account_key, display_label, account_created_at, followers, following)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO accounts (case_id, platform, account_key, display_label, account_created_at, followers, following, display_name)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (case_id, platform, account_key) DO NOTHING
                     """,
                     new_accounts,

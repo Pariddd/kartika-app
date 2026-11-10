@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "params": {
+    "min_signals": 2,
+    "min_cluster_size": 3,
+    "time_window_seconds": 300,
+    "min_co_events": 3,
+    "minhash_threshold": 0.8,
+    "tfidf_threshold": 0.6,
+    "min_shared_texts": 2,
+    "seed": 42
+  },
+  "match_jaccard": 0.5,
+  "calibration_seeds": [
+    1,
+    2,
+    3
+  ],
+  "test_seeds": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "sweep_seeds": [
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "base_cluster": {
+    "label": "Tanaman A",
+    "size": 25,
+    "events": 5,
+    "paraphrase": 0.3,
+    "spread_seconds": 300,
+    "young_accounts": false,
+    "domain": null,
+    "participation": 0.85
+  },
+  "baseline": [
+    {
+      "preset": "standar",
+      "group": "kalibrasi",
+      "seeds": [
+        1,
+        2,
+        3
+      ],
+      "datasets": 3,
+      "planted": 9,
+      "caught": 9,
+      "flagged": 9,
+      "false_flags": 0,
+      "decoys_flagged": 0,
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    {
+      "preset": "standar",
+      "group": "uji",
+      "seeds": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "datasets": 7,
+      "planted": 21,
+      "caught": 21,
+      "flagged": 21,
+      "false_flags": 0,
+      "decoys_flagged": 0,
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    {
+      "preset": "kontrol",
+      "group": "kalibrasi",
+      "seeds": [
+        1,
+        2,
+        3
+      ],
+      "datasets": 3,
+      "planted": 0,
+      "caught": 0,
+      "flagged": 0,
+      "false_flags": 0,
+      "decoys_flagged": 0,
+      "recall": null,
+      "precision": null
+    },
+    {
+      "preset": "kontrol",
+      "group": "uji",
+      "seeds": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "datasets": 7,
+      "planted": 0,
+      "caught": 0,
+      "flagged": 0,
+      "false_flags": 0,
+      "decoys_flagged": 0,
+      "recall": null,
+      "precision": null
+    },
+    {
+      "preset": "parafrase",
+      "group": "kalibrasi",
+      "seeds": [
+        1,
+        2,
+        3
+      ],
+      "datasets": 3,
+      "planted": 6,
+      "caught": 6,
+      "flagged": 6,
+      "false_flags": 0,
+      "decoys_flagged": 0,
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    {
+      "preset": "parafrase",
+      "group": "uji",
+      "seeds": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "datasets": 7,
+      "planted": 14,
+      "caught": 14,
+      "flagged": 14,
+      "false_flags": 0,
+      "decoys_flagged": 0,
+      "recall": 1.0,
+      "precision": 1.0
+    }
+  ],
+  "sweeps": [
+    {
+      "key": "paraphrase",
+      "title": "Tingkat parafrase",
+      "unit": "level",
+      "note": "0 = teks disalin persis; 1 = setiap akun menulis ulang dengan kata pembuka, penutup, dan pilihan kata berbeda.",
+      "points": [
+        {
+          "value": 0.0,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 0.25,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 0.5,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 0.75,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 1.0,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        }
+      ]
+    },
+    {
+      "key": "spread",
+      "title": "Sebaran waktu per kejadian",
+      "unit": "detik",
+      "note": "Rentang waktu anggota klaster memposting dalam satu kejadian. Jendela ko-aktivitas sistem 300 detik.",
+      "points": [
+        {
+          "value": 60,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 300,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 900,
+          "detected": 0,
+          "runs": 5,
+          "rate": 0.0,
+          "false_flags": 0
+        },
+        {
+          "value": 1800,
+          "detected": 0,
+          "runs": 5,
+          "rate": 0.0,
+          "false_flags": 0
+        },
+        {
+          "value": 3600,
+          "detected": 0,
+          "runs": 5,
+          "rate": 0.0,
+          "false_flags": 0
+        },
+        {
+          "value": 10800,
+          "detected": 0,
+          "runs": 5,
+          "rate": 0.0,
+          "false_flags": 0
+        }
+      ]
+    },
+    {
+      "key": "size",
+      "title": "Ukuran klaster",
+      "unit": "akun",
+      "note": "Jumlah akun dalam klaster tanaman.",
+      "points": [
+        {
+          "value": 4,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 6,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 8,
+          "detected": 4,
+          "runs": 5,
+          "rate": 0.8,
+          "false_flags": 0
+        },
+        {
+          "value": 12,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 20,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 30,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        }
+      ]
+    },
+    {
+      "key": "events",
+      "title": "Jumlah kejadian serentak",
+      "unit": "kejadian",
+      "note": "Berapa kali klaster bergerak bersama dalam 24 jam. Sistem mensyaratkan minimal 3 ko-kejadian.",
+      "points": [
+        {
+          "value": 1,
+          "detected": 0,
+          "runs": 5,
+          "rate": 0.0,
+          "false_flags": 0
+        },
+        {
+          "value": 2,
+          "detected": 0,
+          "runs": 5,
+          "rate": 0.0,
+          "false_flags": 0
+        },
+        {
+          "value": 3,
+          "detected": 3,
+          "runs": 5,
+          "rate": 0.6,
+          "false_flags": 0
+        },
+        {
+          "value": 4,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        },
+        {
+          "value": 6,
+          "detected": 5,
+          "runs": 5,
+          "rate": 1.0,
+          "false_flags": 0
+        }
+      ]
+    }
+  ],
+  "duration_seconds": 170
+}

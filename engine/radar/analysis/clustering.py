@@ -10,6 +10,7 @@ from collections import Counter
 
 import networkx as nx
 
+from radar.analysis.louvain import louvain_communities
 from radar.analysis.model import Params
 from radar.analysis.text import SimilarPair
 
@@ -41,7 +42,7 @@ def build_graph(
 def clusters(graph: nx.Graph, params: Params) -> list[set[int]]:
     if graph.number_of_edges() == 0:
         return []
-    communities = nx.community.louvain_communities(graph, weight="weight", seed=params.seed)
+    communities = louvain_communities(graph, weight="weight", seed=params.seed)
     found = [set(c) for c in communities if len(c) >= params.min_cluster_size]
     # Urutan stabil: terbesar dulu, lalu ID akun terkecil.
     return sorted(found, key=lambda c: (-len(c), min(c)))

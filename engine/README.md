@@ -32,10 +32,19 @@ RADAR_TEST_DSN="host=127.0.0.1 dbname=radar_narasi user=radar_web password=..." 
 ## Status
 
 - collect `synthetic`: membuat dataset demo + kunci jawaban (`php artisan radar:demo`).
-- collect `youtube`: komentar + balasan lewat YouTube Data API v3 (`radar/youtube.py`), butuh `YOUTUBE_API_KEY`. Hanya ID kanal (di-HMAC), teks, dan waktu yang dipakai; nama dan URL kanal tidak dibaca. Sekitar 1 unit kuota per 100 komentar.
+- collect `youtube`: komentar + balasan lewat YouTube Data API v3 (`radar/youtube.py`), butuh `YOUTUBE_API_KEY`.
+  ID kanal di-HMAC; URL dan foto profil tidak dibaca. Nama tampilan hanya disimpan bila
+  `RADAR_STORE_ACCOUNT_NAMES=true` di mode lokal (lihat `docs/aturan-kerja.md`). Sekitar 1 unit kuota per 100 komentar.
 - collect `x`: stub sampai izin panitia untuk Apify.
-- analyze: MinHash + TF-IDF karakter (teks), ko-aktivitas waktu, graf + Louvain,
-  empat sinyal terhadap baseline (`radar/analysis/`). Embedding multibahasa menyusul.
+- analyze: MinHash + TF-IDF karakter (teks), ko-aktivitas waktu, graf + Louvain
+  (`radar/analysis/louvain.py`, implementasi sendiri yang dijamin berhenti), empat sinyal terhadap baseline.
+- analyze_csv: CSV unggahan; file dihapus setelah dibaca.
 
-Kalibrasi awal (10 seed per preset sintetis): semua klaster tanaman tertangkap, tanpa salah
-tanda, pengecoh sah tidak ditandai. Ini hasil pada data sintetis buatan tim, bukan akurasi dunia nyata.
+## Evaluasi dan uji ketahanan
+
+```bash
+python -m radar.analysis.robustness --out ../web/resources/evaluation/hasil-evaluasi.json   # sekitar 3 menit
+```
+
+Hasilnya dibaca halaman **Evaluasi** di web. Ambang disetel dengan seed 1-3; hasil uji memakai seed 4-10.
+Semua data sintetis: angka ini bukan akurasi pada data dunia nyata.

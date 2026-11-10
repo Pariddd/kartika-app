@@ -230,7 +230,11 @@ class _Builder:
 
 
 def generate(preset_name: str, seed: int) -> SyntheticDataset:
-    preset = PRESETS[preset_name]
+    return generate_from(PRESETS[preset_name], seed)
+
+
+def generate_from(preset: Preset, seed: int) -> SyntheticDataset:
+    """Dataset dari spesifikasi bebas; dipakai uji ketahanan (radar.analysis.robustness)."""
     b = _Builder(seed)
     rng = b.rng
     dataset = SyntheticDataset(posts=b.posts)

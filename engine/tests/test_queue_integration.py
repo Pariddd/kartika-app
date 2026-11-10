@@ -396,6 +396,7 @@ def test_collect_youtube_menyimpan_komentar_terpseudonimisasi(conn, make_case, y
     assert [a["display_label"] for a in accounts] == ["Akun-0001", "Akun-0002"]
     assert posts[1]["reply_to_key"] == posts[0]["post_key"]
 
+    assert all(a["display_name"] is None for a in accounts)  # bawaan: nama tidak disimpan
     dump = repr(accounts) + repr(posts) + repr(job)
     for raw in ("UCkanalAsliA", "UCkanalAsliB", "UgxThreadAsli1", "NamaAsliUji", "kunci-youtube-uji"):
         assert raw not in dump
@@ -413,3 +414,26 @@ def test_collect_youtube_tanpa_api_key_gagal_dengan_pesan_jelas(conn, make_case)
     assert job["status"] == "failed"
     assert "YOUTUBE_API_KEY" in job["error"]
     assert case_status(conn, case_id) == "failed"
+
+
+def test_collect_youtube_menyimpan_nama_hanya_bila_dinyalakan(conn, make_case, youtube_tiruan):
+    youtube_tiruan["items"] = [{
+        "id": "UgxThreadAsli9",
+        "snippet": {"totalReplyCount": 0, "topLevelComment": {"id": "UgxThreadAsli9", "snippet": {
+            "authorDisplayName": "@NamaTampil", "authorChannelUrl": "http://www.youtube.com/@NamaTampil",
+            "authorChannelId": {"value": "UCkanalAsliZ"}, "textDisplay": "halo 😂", "publishedAt": "2026-11-01T12:00:00Z",
+        }}},
+    }]
+    case_id, job_id = make_case()
+    import dataclasses
+
+    run_once(conn, dataclasses.replace(settings(), store_account_names=True))
+    job = job_row(conn, job_id)
+    assert job["status"] == "done", job["error"]
+    assert job["result_summary"]["names_stored"] is True
+
+    account = conn.execute("SELECT * FROM accounts WHERE case_id = %s", (case_id,)).fetchone()
+    assert account["display_name"] == "@NamaTampil"
+    assert "UCkanalAsliZ" not in repr(account)
+    post = conn.execute("SELECT text FROM posts WHERE case_id = %s", (case_id,)).fetchone()
+    assert "😂" in post["text"]  # emoji tersimpan utuh (database UTF-8)

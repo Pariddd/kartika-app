@@ -27,6 +27,19 @@ class CaseFilePolicy
         return true;
     }
 
+    /**
+     * Admin boleh menghapus kasus apa pun; pengguna lain hanya kasus buatannya sendiri
+     * (misalnya unggahan CSV milik akun demo), selama ia memang boleh melihatnya.
+     */
+    public function delete(User $user, CaseFile $case): bool
+    {
+        if ($user->hasRole(Role::Admin)) {
+            return true;
+        }
+
+        return $case->created_by === $user->getKey() && $this->view($user, $case);
+    }
+
     public function create(User $user): bool
     {
         return Gate::forUser($user)->allows('collect-data');

@@ -171,3 +171,33 @@ def test_settings_tidak_menampilkan_kunci_di_repr():
 
     s = Settings("local", "", 0, "", "", "", 1, "w", youtube_api_key=KEY)
     assert KEY not in repr(s)
+
+
+def test_nama_tampilan_hanya_dibaca_bila_diminta_dan_tidak_pernah_url_profil():
+    def api():
+        return FakeApi({("commentThreads", "vid00000001", None): (200, {"items": [thread("T1", "UC_A")]})})
+
+    default = YouTubeClient(KEY, fetch=api(), sleep=no_sleep).collect(["vid00000001"], 10)
+    assert default.posts[0].author_name is None
+
+    named = YouTubeClient(KEY, fetch=api(), sleep=no_sleep, include_names=True).collect(["vid00000001"], 10)
+    assert named.posts[0].author_name == "@NamaAsliJanganDisimpan"
+    assert "yt3.example" not in repr(named.posts[0])
+    assert "youtube.com/@" not in repr(named.posts[0])
+
+
+def test_nama_hanya_aktif_di_mode_lokal():
+    from radar.config import Settings
+
+    assert Settings("local", "", 0, "", "", "", 1, "w", store_account_names=True).names_enabled
+    assert not Settings("public", "", 0, "", "", "", 1, "w", store_account_names=True).names_enabled
+    assert not Settings("local", "", 0, "", "", "", 1, "w").names_enabled
+
+
+def test_nama_dibersihkan_dari_karakter_kontrol_dan_dibatasi():
+    from radar.ingest import clean_name
+
+    assert clean_name("  Budi‮\x00 S  ") == "Budi S"
+    assert clean_name("​") is None
+    assert clean_name(None) is None
+    assert len(clean_name("a" * 300)) == 100

@@ -26,7 +26,7 @@
                     · {{ Format::number($r['period']['posts']) }} post dari {{ Format::number($r['period']['accounts']) }} akun
                 </p>
             </div>
-            <button type="button" onclick="window.print()" class="inline-flex min-h-11 items-center rounded-lg border border-[#b9bfb6] bg-white px-5 font-medium hover:bg-paper print:hidden">
+            <button type="button" data-print class="inline-flex min-h-11 items-center rounded-lg border border-[#b9bfb6] bg-white px-5 font-medium hover:bg-paper print:hidden">
                 Cetak / simpan PDF
             </button>
         </header>

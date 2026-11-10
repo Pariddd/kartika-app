@@ -2,7 +2,9 @@
 
 - Hanya field yang dibutuhkan analisis yang dipakai: ID kanal penulis (langsung
   di-HMAC oleh ingest), ID komentar, teks, waktu, dan ID induk balasan.
-  Nama tampilan, foto, dan URL kanal penulis tidak pernah dibaca.
+  Foto dan URL kanal penulis tidak pernah dibaca.
+- Nama tampilan penulis hanya dibaca bila include_names=True (RADAR_STORE_ACCOUNT_NAMES
+  di mode lokal). Bawaannya tidak dibaca.
 - API key tidak pernah ditulis ke log atau pesan error.
 - Data mentah hanya hidup di memori, tidak disimpan ke disk.
 """
@@ -58,12 +60,20 @@ class CollectResult:
 
 
 class YouTubeClient:
-    def __init__(self, api_key: str, fetch: Fetch | None = None, sleep: Callable[[float], None] = time.sleep) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        fetch: Fetch | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        *,
+        include_names: bool = False,
+    ) -> None:
         if not api_key:
             raise ConfigError("YOUTUBE_API_KEY di engine/.env wajib diisi untuk kasus YouTube")
         self._key = api_key
         self._fetch = fetch or _default_fetch
         self._sleep = sleep
+        self._include_names = include_names
         self.requests = 0
 
     def _get(self, resource: str, params: dict[str, Any]) -> tuple[int, dict[str, Any]]:
@@ -160,8 +170,7 @@ class YouTubeClient:
                 break
         return replies
 
-    @staticmethod
-    def _add(result: CollectResult, comment: dict[str, Any], thread_id: str | None, parent_id: str | None) -> None:
+    def _add(self, result: CollectResult, comment: dict[str, Any], thread_id: str | None, parent_id: str | None) -> None:
         snippet = comment.get("snippet", {})
         author = (snippet.get("authorChannelId") or {}).get("value")
         # textDisplay (dengan textFormat=plainText) selalu tersedia; textOriginal tidak dijamin untuk API key.
@@ -179,5 +188,6 @@ class YouTubeClient:
                 posted_at=datetime.fromisoformat(published.replace("Z", "+00:00")),
                 reply_to_id=parent_id,
                 conversation_id=thread_id,
+                author_name=snippet.get("authorDisplayName") if self._include_names else None,
             )
         )

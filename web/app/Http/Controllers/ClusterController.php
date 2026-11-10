@@ -9,13 +9,21 @@ use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\Cluster;
 use App\Models\Post;
+use App\Support\AccountNames;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ClusterController extends Controller
 {
-    public function show(CaseFile $case, Cluster $cluster): View
+    public function show(Request $request, CaseFile $case, Cluster $cluster): View
     {
+        $showNames = AccountNames::visibleTo($request->user(), $case);
+        if ($showNames) {
+            // Membuka identitas adalah kejadian tersendiri di log audit.
+            AuditLog::record('clusters.names', $request->user()->getKey(), $case->getKey(), $request->ip(), 200);
+        }
+
         $cluster->load([
             'signals',
             'latestReview.user',
@@ -30,7 +38,7 @@ class ClusterController extends Controller
         $posts = Post::query()
             ->where('case_id', $case->getKey())
             ->whereIn('id', $postIds)
-            ->with('account:id,display_label')
+            ->with('account:id,display_label,display_name')
             ->get()
             ->keyBy('id');
 
@@ -41,6 +49,7 @@ class ClusterController extends Controller
             'pairs' => $pairs,
             'posts' => $posts,
             'masked' => $case->mode === CaseMode::Live && config('radar.presentation_mask'),
+            'showNames' => $showNames,
         ]);
     }
 

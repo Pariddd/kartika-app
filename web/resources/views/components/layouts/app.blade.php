@@ -36,6 +36,15 @@
                    @if (request()->routeIs('upload.*')) aria-current="page" @endif>
                     Coba Sendiri
                 </a>
+                <a href="{{ route('evaluation.show') }}"
+                   @class([
+                       'inline-flex min-h-11 items-center rounded-md px-3.5 text-sm',
+                       'bg-white/10 font-medium text-white' => request()->routeIs('evaluation.*'),
+                       'text-[#d7dcd6] hover:text-white' => ! request()->routeIs('evaluation.*'),
+                   ])
+                   @if (request()->routeIs('evaluation.*')) aria-current="page" @endif>
+                    Evaluasi
+                </a>
                 @can('view-audit-log')
                     <a href="{{ route('audit.index') }}"
                        @class([

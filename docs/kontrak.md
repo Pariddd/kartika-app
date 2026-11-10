@@ -62,6 +62,7 @@ Bawaan Laravel, ditambah `role` enum: `admin`, `analis`, `demo`.
 | platform | enum `x`, `youtube`, `csv`, `synthetic` | |
 | account_key | char(64) | HMAC-SHA256 dari `platform:author_id` |
 | display_label | varchar(16) | `Akun-0001`, berurutan per kasus menurut waktu post pertama akun (bukan urutan data masuk), agar label tidak membocorkan pengelompokan |
+| display_name | varchar(100) null | nama tampilan dari platform; null secara bawaan. Hanya diisi worker bila `RADAR_STORE_ACCOUNT_NAMES=true` di mode lokal (lihat `docs/aturan-kerja.md`). Bukan ID dan bukan URL profil |
 | account_created_at | timestamptz null | hanya X atau CSV `tanggal_akun` |
 | followers | integer null | |
 | following | integer null | |
@@ -259,7 +260,7 @@ Nilai ambang di atas adalah titik awal dan diganti hasil kalibrasi sintetis.
   "warnings": ["sinyal profil tidak tersedia untuk data YouTube"]
 }
 ```
-Untuk `collect`: `posts`, `accounts`, `duplicates_skipped`, `duration_ms`, `warnings`; collect YouTube menambah `api_requests` (jumlah permintaan ke API, kira-kira unit kuota terpakai). Angka di contoh hanya ilustrasi format.
+Untuk `collect`: `posts`, `accounts`, `duplicates_skipped`, `duration_ms`, `warnings`; collect YouTube menambah `api_requests` (jumlah permintaan ke API, kira-kira unit kuota terpakai) dan `names_stored` (boolean: apakah nama tampilan ikut disimpan). Angka di contoh hanya ilustrasi format.
 
 ## 6. `cluster_signals.evidence`
 

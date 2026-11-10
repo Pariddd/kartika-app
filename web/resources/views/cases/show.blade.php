@@ -124,6 +124,14 @@
         </section>
     @endif
 
+    @if ($timeline)
+        <section aria-labelledby="judul-lini-waktu" class="mt-6 rounded-xl border border-line bg-white p-5">
+            <h2 id="judul-lini-waktu" class="text-lg font-semibold">Lini waktu percakapan</h2>
+            <p class="mb-4 text-sm text-muted">Kapan percakapan naik, dan berapa bagiannya yang berasal dari klaster ditandai.</p>
+            <x-timeline :timeline="$timeline" />
+        </section>
+    @endif
+
     @if ($case->clusters->isEmpty())
         <section class="mt-6 rounded-xl border border-dashed border-[#b9bfb6] px-6 py-10 text-center">
             <h2 class="font-semibold">Hasil analisis</h2>
@@ -246,4 +254,26 @@
     </section>
 
     </details>
+
+    @can('delete', $case)
+        <details class="mt-6 rounded-xl border border-line bg-white p-5">
+            <summary class="cursor-pointer text-sm font-medium text-coord-ink">Hapus kasus</summary>
+            <form method="POST" action="{{ route('cases.destroy', $case) }}" class="mt-4 flex flex-col gap-3">
+                @csrf
+                @method('DELETE')
+                <p class="max-w-2xl text-sm leading-relaxed text-[#2f3833]">
+                    Menghapus kasus ini juga menghapus seluruh post, akun, klaster, bukti, dan penilaiannya.
+                    Tindakan ini tidak bisa dibatalkan dan tercatat di log audit.
+                </p>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="confirm" value="1" required class="size-4 accent-coord">
+                    Saya paham, hapus kasus "{{ $case->displayName() }}" beserta datanya.
+                </label>
+                @error('confirm') <p class="text-sm text-coord-ink">{{ $message }}</p> @enderror
+                <div>
+                    <button type="submit" class="inline-flex min-h-11 items-center rounded-lg border border-coord bg-white px-5 font-medium text-coord-ink hover:bg-coord-soft">Hapus permanen</button>
+                </div>
+            </form>
+        </details>
+    @endcan
 </x-layouts.app>
