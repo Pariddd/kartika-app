@@ -25,6 +25,7 @@ class RecordAuditLog
                 userId: $request->user()?->getAuthIdentifier(),
                 caseId: $this->caseId($request),
                 ip: $request->ip(),
+                status: $response->getStatusCode(),
             );
         } catch (Throwable $exception) {
             // Kegagalan menulis audit dilaporkan, tetapi tidak menggagalkan halaman.

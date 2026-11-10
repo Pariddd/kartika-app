@@ -51,7 +51,7 @@
                         @foreach ($cases as $case)
                             <tr class="border-t border-[#e4e7e1]">
                                 <td class="px-5 py-3.5">
-                                    <a href="{{ route('cases.show', $case) }}" class="font-semibold text-ink hover:underline">{{ $case->name }}</a>
+                                    <a href="{{ route('cases.show', $case) }}" class="font-semibold text-ink hover:underline">{{ $case->displayName() }}</a>
                                     <div class="mt-0.5 text-xs text-muted">{{ $case->mode->label() }}</div>
                                 </td>
                                 <td class="px-3 py-3.5">

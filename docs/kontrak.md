@@ -113,7 +113,7 @@ id, cluster_id, user_id, verdict enum `terkoordinasi`, `keliru`, `belum_pasti`, 
 case_id, planted_label varchar(16), account_id. Hanya dibaca oleh endpoint "Tampilkan jawaban".
 
 ### `audit_logs` [L]
-id, user_id null, action varchar(64), case_id null, ip varchar(45), created_at.
+id, user_id null, action varchar(64), case_id null, ip varchar(45), status smallint null (kode HTTP; ≥ 400 = akses ditolak; null untuk login/logout), created_at.
 
 ## 3. Siklus job
 
@@ -222,7 +222,10 @@ Nilai ambang di atas adalah titik awal dan diganti hasil kalibrasi sintetis.
   }
 }
 ```
-`file_ref` dibuat server. Worker menolak path yang mengandung `..`, `\`, atau diawali `/`.
+- `file_ref` dibuat server: `uploads/<uuid>.csv`, relatif terhadap disk `local` Laravel (`web/storage/app/private`). Worker membacanya lewat `RADAR_UPLOAD_DIR` dan **hanya** menerima pola UUID tersebut di dalam folder itu (mencegah path traversal).
+- Boleh di mode publik (data milik pengunggah). File dihapus setelah dibaca, berhasil atau gagal; kasus `mode = csv` kedaluwarsa 24 jam (`expires_at`) dan dihapus `php artisan radar:purge-expired` (terjadwal tiap jam).
+- `use_embedding`: `false` sampai modul embedding tersedia.
+- Format CSV (diperiksa Laravel saat unggah **dan** worker): header wajib `akun,teks,waktu`; opsional `url,reply_to,tanggal_akun`; kolom lain ditolak; maks. 2.000 baris dan 2 MB; `teks` ≤ 1.000 karakter; `waktu` ISO 8601 (tanpa zona dianggap WIB); `tanggal_akun` `YYYY-MM-DD`. ID post dibentuk dari hash `akun|teks|waktu`, sehingga baris identik dihitung sekali.
 
 ### `evaluate`
 ```json
@@ -256,7 +259,7 @@ Nilai ambang di atas adalah titik awal dan diganti hasil kalibrasi sintetis.
   "warnings": ["sinyal profil tidak tersedia untuk data YouTube"]
 }
 ```
-Untuk `collect`: `posts`, `accounts`, `duplicates_skipped`, `duration_ms`, `warnings`. Angka di contoh hanya ilustrasi format.
+Untuk `collect`: `posts`, `accounts`, `duplicates_skipped`, `duration_ms`, `warnings`; collect YouTube menambah `api_requests` (jumlah permintaan ke API, kira-kira unit kuota terpakai). Angka di contoh hanya ilustrasi format.
 
 ## 6. `cluster_signals.evidence`
 

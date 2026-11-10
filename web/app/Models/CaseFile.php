@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\CaseMode;
 use App\Enums\CaseStatus;
 use App\Enums\Role;
+use App\Support\ContentMask;
 use Database\Factories\CaseFileFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -37,6 +38,15 @@ class CaseFile extends Model
             'query' => 'array',
             'expires_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Nama untuk ditampilkan: disamarkan bila memuat kata dari daftar penyamaran
+     * (nama kasus unggahan diketik oleh pengguna, termasuk juri di mode publik).
+     */
+    public function displayName(): string
+    {
+        return ContentMask::display($this->name);
     }
 
     /**

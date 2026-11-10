@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -25,10 +25,12 @@ class Settings:
     db_port: int
     db_name: str
     db_user: str
-    db_password: str
+    db_password: str = field(repr=False)
     poll_seconds: float
     worker_id: str
-    pseudo_key: str = ""
+    pseudo_key: str = field(default="", repr=False)
+    upload_dir: str = ""
+    youtube_api_key: str = field(default="", repr=False)
 
     @property
     def is_local(self) -> bool:
@@ -49,4 +51,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         # Maksimal 64 karakter sesuai kolom analysis_jobs.worker_id.
         worker_id=f"{socket.gethostname()}:{os.getpid()}"[:64],
         pseudo_key=os.getenv("PSEUDO_KEY", ""),
+        upload_dir=os.getenv("RADAR_UPLOAD_DIR", ""),
+        youtube_api_key=os.getenv("YOUTUBE_API_KEY", "").strip(),
     )

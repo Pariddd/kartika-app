@@ -1,7 +1,9 @@
 """Penanganan per jenis job.
 
 - collect sintetis: membuat dataset demo beserta kunci jawaban (boleh di mode publik).
-- collect YouTube/X: masih stub sampai adapter dibuat (hanya mode lokal).
+- collect YouTube: komentar dan balasan lewat YouTube Data API v3 (radar.youtube), hanya mode lokal.
+- collect X: masih stub sampai izin panitia untuk Apify (hanya mode lokal).
+- analyze_csv: baca CSV unggahan (radar.csv_input), ingest, lalu analisis; file dihapus setelah dibaca.
 - analyze: kemiripan teks + ko-aktivitas waktu -> klaster -> empat sinyal (radar.analysis).
 """
 
@@ -12,7 +14,9 @@ from typing import Any
 
 import psycopg
 
-from radar import queue, synthetic
+from pathlib import Path
+
+from radar import csv_input, queue, synthetic, youtube
 from radar.analysis import store
 from radar.analysis.model import Params
 from radar.analysis.pipeline import analyze
@@ -34,6 +38,8 @@ def handle(conn: psycopg.Connection, job: Job, settings: Settings) -> dict[str, 
         return handle_collect(conn, job, payload, settings, started)
     if job.job_type == "analyze":
         return handle_analyze(conn, job, payload, started)
+    if job.job_type == "analyze_csv":
+        return handle_analyze_csv(conn, job, payload, settings, started)
 
     raise PayloadError(f"job_type '{job.job_type}' belum didukung worker")
 
@@ -72,6 +78,9 @@ def handle_collect(
     if not settings.is_local:
         raise PayloadError(COLLECT_DISABLED)
 
+    if params["platform"] == "youtube":
+        return collect_youtube(conn, job, payload, settings, started)
+
     summary = {
         "schema_version": SCHEMA_VERSION,
         "posts": 0,
@@ -81,6 +90,38 @@ def handle_collect(
         "warnings": [f"stub: adapter {params['platform']} belum diimplementasikan"],
     }
     with conn.transaction():
+        _finish_collect(conn, job, payload, summary)
+    return summary
+
+
+def collect_youtube(
+    conn: psycopg.Connection, job: Job, payload: dict[str, Any], settings: Settings, started: float
+) -> dict[str, Any]:
+    params = payload["params"]
+    # Pseudonymizer dibuat lebih dulu: tanpa PSEUDO_KEY, tidak ada satu pun permintaan ke API.
+    pseudo = Pseudonymizer(settings.pseudo_key)
+    client = youtube.YouTubeClient(settings.youtube_api_key)
+
+    # Pengambilan data di luar transaksi: tidak ada kunci database yang ditahan selama menunggu jaringan.
+    collected = client.collect(params["video_ids"], params["max_items"])
+
+    warnings = list(collected.warnings)
+    if collected.skipped_without_author:
+        warnings.append(f"{collected.skipped_without_author} komentar dilewati karena tanpa ID kanal atau teks")
+    if len(collected.posts) >= params["max_items"]:
+        warnings.append(f"batas max_items ({params['max_items']}) tercapai; komentar lain tidak diambil")
+
+    with conn.transaction():
+        result = ingest(conn, job.case_id, collected.posts, pseudo)
+        summary = {
+            "schema_version": SCHEMA_VERSION,
+            "posts": result.posts_inserted,
+            "accounts": result.accounts_inserted,
+            "duplicates_skipped": result.duplicates_skipped,
+            "api_requests": collected.requests,
+            "duration_ms": _elapsed_ms(started),
+            "warnings": warnings,
+        }
         _finish_collect(conn, job, payload, summary)
     return summary
 
@@ -126,13 +167,10 @@ def collect_synthetic(
     return summary
 
 
-def handle_analyze(
-    conn: psycopg.Connection, job: Job, payload: dict[str, Any], started: float
-) -> dict[str, Any]:
-    params = Params.from_payload(payload["params"])
+def _analyze_and_store(conn: psycopg.Connection, job: Job, params: Params, started: float, warnings: list[str]) -> dict[str, Any]:
+    """Dipanggil di dalam transaksi pemanggil."""
     posts, accounts = store.load_case(conn, job.case_id)
     result = analyze(posts, accounts, params)
-
     summary = {
         "schema_version": SCHEMA_VERSION,
         "posts": result.total_posts,
@@ -141,12 +179,40 @@ def handle_analyze(
         "flagged": len(result.flagged),
         "organic_score": round(result.organic_score, 3),
         "duration_ms": _elapsed_ms(started),
-        "warnings": result.warnings,
+        "warnings": warnings + result.warnings,
     }
+    store.save(conn, job.case_id, job.id, result)
+    queue.complete(conn, job, summary)
+    queue.set_case_status(conn, job.case_id, "done")
+    return summary
+
+
+def handle_analyze(
+    conn: psycopg.Connection, job: Job, payload: dict[str, Any], started: float
+) -> dict[str, Any]:
+    params = Params.from_payload(payload["params"])
+    with conn.transaction():
+        return _analyze_and_store(conn, job, params, started, [])
+
+
+def handle_analyze_csv(
+    conn: psycopg.Connection, job: Job, payload: dict[str, Any], settings: Settings, started: float
+) -> dict[str, Any]:
+    """CSV milik pengunggah: boleh di mode publik. File dihapus setelah dibaca, berhasil atau gagal."""
+    params = payload["params"]
+    path: Path = csv_input.resolve(settings.upload_dir, params.get("file_ref"))
+    pseudo = Pseudonymizer(settings.pseudo_key)
+
+    try:
+        posts = csv_input.read(path)
+    finally:
+        if params.get("delete_after_ingest", True):
+            path.unlink(missing_ok=True)
+
+    warnings = []
+    if params.get("use_embedding"):
+        warnings.append("embedding belum tersedia; sinyal teks memakai MinHash dan TF-IDF")
 
     with conn.transaction():
-        store.save(conn, job.case_id, job.id, result)
-        queue.complete(conn, job, summary)
-        queue.set_case_status(conn, job.case_id, "done")
-
-    return summary
+        ingest(conn, job.case_id, posts, pseudo)
+        return _analyze_and_store(conn, job, Params.from_payload(params), started, warnings)

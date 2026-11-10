@@ -1,0 +1,47 @@
+# Daftar kata untuk penyamaran tampilan (ContentMask).
+# Satu kata per baris, huruf kecil. Baris diawali # diabaikan.
+# Dicocokkan per kata utuh setelah normalisasi (huruf kecil, angka-mirip-huruf, huruf berulang),
+# juga dengan akhiran -nya, -lah, -mu, -ku. Post yang memuat salah satu kata tampil sebagai
+# [konten disamarkan]; teks asli tetap dipakai untuk analisis.
+#
+# Sengaja tidak dimasukkan karena terlalu sering bermakna netral: babi, asu, tai, cina, onta.
+
+# Kata kasar dan makian
+anjing
+anjir
+anjrit
+bangsat
+bajingan
+brengsek
+keparat
+kampret
+goblok
+goblog
+tolol
+bego
+sialan
+taik
+kontol
+memek
+ngentot
+entot
+jancok
+jancuk
+pantek
+pukimak
+puki
+kimak
+perek
+lonte
+pelacur
+jablay
+sundal
+
+# Hinaan berbasis SARA, identitas, atau kelompok politik
+kafir
+cokin
+aseng
+kadrun
+cebong
+bencong
+banci

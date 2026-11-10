@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Tidak disajikan lewat URL: berisi CSV unggahan yang hanya dibaca worker.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

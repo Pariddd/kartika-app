@@ -1,6 +1,6 @@
 @php use App\Support\Format; @endphp
 
-<x-layouts.app :title="$case->name">
+<x-layouts.app :title="$case->displayName()">
     @if ($isProcessing)
         {{-- Muat ulang otomatis selama job masih berjalan, tanpa JavaScript. --}}
         @push('head')
@@ -11,7 +11,7 @@
     <nav aria-label="Breadcrumb" class="flex gap-2 text-sm text-muted">
         <a href="{{ route('cases.index') }}" class="text-organic hover:underline">Kasus</a>
         <span aria-hidden="true">/</span>
-        <span>{{ $case->name }}</span>
+        <span>{{ $case->displayName() }}</span>
     </nav>
 
     <div class="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -25,11 +25,16 @@
                 @endforeach
                 <x-status-badge :status="$case->status" />
             </div>
-            <h1 class="text-3xl font-semibold">{{ $case->name }}</h1>
+            <h1 class="text-3xl font-semibold">{{ $case->displayName() }}</h1>
             <p class="text-sm text-muted">
                 Dibuat {{ Format::wib($case->created_at) }} WIB oleh {{ $case->creator?->name ?? 'pengguna terhapus' }}
             </p>
         </div>
+        @if ($case->latestIssueScore)
+            <a href="{{ route('cases.report', $case) }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand px-5 font-medium text-white hover:bg-brand-dark">
+                Ringkasan BLUF
+            </a>
+        @endif
     </div>
 
     @if (session('status'))

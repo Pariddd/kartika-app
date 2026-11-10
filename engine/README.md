@@ -32,7 +32,8 @@ RADAR_TEST_DSN="host=127.0.0.1 dbname=radar_narasi user=radar_web password=..." 
 ## Status
 
 - collect `synthetic`: membuat dataset demo + kunci jawaban (`php artisan radar:demo`).
-- collect `youtube`/`x`: stub sampai adapter dibuat.
+- collect `youtube`: komentar + balasan lewat YouTube Data API v3 (`radar/youtube.py`), butuh `YOUTUBE_API_KEY`. Hanya ID kanal (di-HMAC), teks, dan waktu yang dipakai; nama dan URL kanal tidak dibaca. Sekitar 1 unit kuota per 100 komentar.
+- collect `x`: stub sampai izin panitia untuk Apify.
 - analyze: MinHash + TF-IDF karakter (teks), ko-aktivitas waktu, graf + Louvain,
   empat sinyal terhadap baseline (`radar/analysis/`). Embedding multibahasa menyusul.
 

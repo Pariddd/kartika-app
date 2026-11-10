@@ -25,8 +25,26 @@ DSN = os.getenv("RADAR_TEST_DSN")
 pytestmark = pytest.mark.skipif(not DSN, reason="RADAR_TEST_DSN tidak diisi")
 
 
+UPLOAD_DIR = os.getenv("RADAR_TEST_UPLOAD_DIR", "")
+
+
 def settings(mode: str = "local", worker: str = "uji:1") -> Settings:
-    return Settings(mode, "", 0, "", "", "", 0.1, worker, pseudo_key="kunci-uji-" + "x" * 32)
+    return Settings(
+        mode, "", 0, "", "", "", 0.1, worker,
+        pseudo_key="kunci-uji-" + "x" * 32, upload_dir=UPLOAD_DIR, youtube_api_key="kunci-youtube-uji",
+    )
+
+
+@pytest.fixture(autouse=True)
+def youtube_tiruan(monkeypatch):
+    """Tidak ada test yang menghubungi Google. Default: video tanpa komentar."""
+    responses = {"items": []}
+
+    def fake_fetch(url):
+        return 200, responses
+
+    monkeypatch.setattr("radar.youtube._default_fetch", fake_fetch)
+    return responses
 
 
 @pytest.fixture
@@ -285,9 +303,113 @@ def test_collect_sintetis_tanpa_pseudo_key_gagal_dengan_pesan_jelas(conn, make_c
     assert conn.execute("SELECT count(*) AS n FROM posts WHERE case_id = %s", (case_id,)).fetchone()["n"] == 0
 
 
+@pytest.mark.skipif(not UPLOAD_DIR, reason="RADAR_TEST_UPLOAD_DIR tidak diisi")
+def test_csv_unggahan_diingest_dianalisis_dan_filenya_dihapus(conn, make_case):
+    from pathlib import Path
+
+    ref = f"uploads/{uuid.uuid4()}.csv"
+    path = Path(UPLOAD_DIR) / ref
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = ["akun,teks,waktu,url"]
+    for event in range(4):
+        for member in range(6):
+            rows.append(f"ops_{member},Relokasi pasar adalah langkah paling masuk akal untuk kota yang tertata,"
+                        f"2026-11-01T{8 + event * 3:02d}:0{member}:00+07:00,https://palsu-{event}.example/a")
+    for organic in range(40):
+        rows.append(f"warga_{organic},Saya warga biasa nomor {organic} dengan pendapat berbeda-beda soal pasar,"
+                    f"2026-11-01T{7 + organic % 12:02d}:{(organic * 7) % 60:02d}:00+07:00,")
+    path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+    case_id, job_id = make_case(
+        job_type="analyze_csv",
+        params={"file_ref": ref, "delete_after_ingest": True, "use_embedding": False},
+    )
+    run_once(conn, settings(mode="public"))  # CSV milik pengguna boleh di server publik
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "done", job["error"]
+    assert job["result_summary"]["posts"] == 64
+    assert job["result_summary"]["flagged"] == 1
+    assert not path.exists()
+    assert case_status(conn, case_id) == "done"
+    leaked = conn.execute("SELECT count(*) AS n FROM accounts WHERE case_id = %s AND account_key LIKE 'ops_%%'", (case_id,)).fetchone()["n"]
+    assert leaked == 0
+
+
+@pytest.mark.skipif(not UPLOAD_DIR, reason="RADAR_TEST_UPLOAD_DIR tidak diisi")
+def test_csv_tidak_valid_gagal_dengan_pesan_dan_filenya_tetap_dihapus(conn, make_case):
+    from pathlib import Path
+
+    ref = f"uploads/{uuid.uuid4()}.csv"
+    path = Path(UPLOAD_DIR) / ref
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("akun,teks,waktu\na,b,kemarin\n", encoding="utf-8")
+
+    case_id, job_id = make_case(job_type="analyze_csv", params={"file_ref": ref, "delete_after_ingest": True})
+    run_once(conn, settings())
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "failed" and "waktu" in job["error"]
+    assert not path.exists()
+    assert case_status(conn, case_id) == "failed"
+
+
 def test_job_running_yang_masih_hidup_tidak_disentuh(conn, make_case):
     _, job_id = make_case()
     conn.execute("UPDATE analysis_jobs SET status = 'running', attempts = 1, locked_at = now() WHERE id = %s", (job_id,))
 
     assert queue.requeue_stale(conn) == 0
     assert job_row(conn, job_id)["status"] == "running"
+
+
+def test_collect_youtube_menyimpan_komentar_terpseudonimisasi(conn, make_case, youtube_tiruan):
+    def c(cid, author, text, at, parent=None):
+        snippet = {
+            "authorDisplayName": "@NamaAsliUji",
+            "authorChannelUrl": "http://www.youtube.com/@NamaAsliUji",
+            "authorChannelId": {"value": author},
+            "textDisplay": text,
+            "publishedAt": at,
+        }
+        if parent:
+            snippet["parentId"] = parent
+        return {"id": cid, "snippet": snippet}
+
+    youtube_tiruan["items"] = [
+        {
+            "id": "UgxThreadAsli1",
+            "snippet": {"topLevelComment": c("UgxThreadAsli1", "UCkanalAsliA", "@NamaAsliUji mantap", "2026-11-01T12:00:00Z"), "totalReplyCount": 1},
+            "replies": {"comments": [c("UgxThreadAsli1.r1", "UCkanalAsliB", "setuju", "2026-11-01T12:01:00Z", "UgxThreadAsli1")]},
+        },
+    ]
+    case_id, job_id = make_case()
+
+    run_once(conn, settings())
+    job = job_row(conn, job_id)
+    assert job["status"] == "done", job["error"]
+    assert job["result_summary"]["posts"] == 2
+    assert job["result_summary"]["accounts"] == 2
+    assert job["result_summary"]["api_requests"] == 1
+
+    accounts = conn.execute("SELECT * FROM accounts WHERE case_id = %s ORDER BY id", (case_id,)).fetchall()
+    posts = conn.execute("SELECT * FROM posts WHERE case_id = %s ORDER BY posted_at", (case_id,)).fetchall()
+    assert [a["display_label"] for a in accounts] == ["Akun-0001", "Akun-0002"]
+    assert posts[1]["reply_to_key"] == posts[0]["post_key"]
+
+    dump = repr(accounts) + repr(posts) + repr(job)
+    for raw in ("UCkanalAsliA", "UCkanalAsliB", "UgxThreadAsli1", "NamaAsliUji", "kunci-youtube-uji"):
+        assert raw not in dump
+    assert posts[0]["text"].startswith("@u_")
+
+    assert run_once(conn, settings()).job_type == "analyze"
+    assert case_status(conn, case_id) == "done"
+
+
+def test_collect_youtube_tanpa_api_key_gagal_dengan_pesan_jelas(conn, make_case):
+    case_id, job_id = make_case()
+    no_key = Settings("local", "", 0, "", "", "", 0.1, "uji:1", pseudo_key="kunci-uji-" + "x" * 32)
+    run_once(conn, no_key)
+    job = job_row(conn, job_id)
+    assert job["status"] == "failed"
+    assert "YOUTUBE_API_KEY" in job["error"]
+    assert case_status(conn, case_id) == "failed"

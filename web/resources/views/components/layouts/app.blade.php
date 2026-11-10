@@ -9,8 +9,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
-<body class="min-h-screen bg-paper font-sans text-ink antialiased">
-    <header class="bg-ink text-paper">
+<body class="min-h-screen bg-paper font-sans text-ink antialiased print:bg-white">
+    <header class="bg-ink text-paper print:hidden">
         <div class="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-2.5">
             <a href="{{ route('cases.index') }}" class="flex items-center gap-2.5 text-paper">
                 <x-logo class="size-7 text-[#e7b27a]" />
@@ -27,6 +27,26 @@
                    @if (request()->routeIs('cases.*')) aria-current="page" @endif>
                     Kasus
                 </a>
+                <a href="{{ route('upload.create') }}"
+                   @class([
+                       'inline-flex min-h-11 items-center rounded-md px-3.5 text-sm',
+                       'bg-white/10 font-medium text-white' => request()->routeIs('upload.*'),
+                       'text-[#d7dcd6] hover:text-white' => ! request()->routeIs('upload.*'),
+                   ])
+                   @if (request()->routeIs('upload.*')) aria-current="page" @endif>
+                    Coba Sendiri
+                </a>
+                @can('view-audit-log')
+                    <a href="{{ route('audit.index') }}"
+                       @class([
+                           'inline-flex min-h-11 items-center rounded-md px-3.5 text-sm',
+                           'bg-white/10 font-medium text-white' => request()->routeIs('audit.*'),
+                           'text-[#d7dcd6] hover:text-white' => ! request()->routeIs('audit.*'),
+                       ])
+                       @if (request()->routeIs('audit.*')) aria-current="page" @endif>
+                        Log audit
+                    </a>
+                @endcan
             </nav>
 
             <div class="flex items-center gap-3 text-sm text-[#d7dcd6]">
@@ -44,9 +64,9 @@
         </div>
     </header>
 
-    <x-mode-banner />
+    <div class="print:hidden"><x-mode-banner /></div>
 
-    <main class="mx-auto max-w-7xl px-6 py-8">
+    <main class="mx-auto max-w-7xl px-6 py-8 print:max-w-none print:p-0">
         {{ $slot }}
     </main>
 </body>

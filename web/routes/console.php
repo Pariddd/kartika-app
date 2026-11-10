@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Butuh "php artisan schedule:work" (lokal) atau cron "schedule:run" tiap menit (server).
+Schedule::command('radar:purge-expired')->hourly()->withoutOverlapping();

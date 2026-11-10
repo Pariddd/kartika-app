@@ -1,6 +1,7 @@
 @php
     use App\Enums\SignalType;
     use App\Support\Format;
+    use App\Support\ContentMask;
     use App\Support\SignalExplainer;
     $text = $signals->get('text');
     $time = $signals->get('time');
@@ -11,7 +12,7 @@
     <nav aria-label="Breadcrumb" class="flex flex-wrap gap-2 text-sm text-muted">
         <a href="{{ route('cases.index') }}" class="text-organic hover:underline">Kasus</a>
         <span aria-hidden="true">/</span>
-        <a href="{{ route('cases.show', $case) }}" class="text-organic hover:underline">{{ $case->name }}</a>
+        <a href="{{ route('cases.show', $case) }}" class="text-organic hover:underline">{{ $case->displayName() }}</a>
         <span aria-hidden="true">/</span>
         <span>{{ $cluster->display_label }}</span>
     </nav>
@@ -76,8 +77,12 @@
                             <span class="font-mono text-xs text-muted">{{ $post?->account?->display_label ?? '–' }} · {{ Format::wib($post?->posted_at) }}</span>
                             @if ($masked)
                                 <p class="text-[15px] italic text-muted">[teks disamarkan · mode presentasi]</p>
+                            @elseif ($post === null)
+                                <p class="text-[15px] italic text-muted">Post tidak ditemukan.</p>
+                            @elseif (ContentMask::display($post->text) === ContentMask::PLACEHOLDER)
+                                <p class="text-[15px] italic text-muted">{{ ContentMask::PLACEHOLDER }} <span class="text-xs not-italic">· memuat kata dari daftar penyamaran</span></p>
                             @else
-                                <p class="text-[15px] leading-relaxed">{{ $post?->text ?? 'Post tidak ditemukan.' }}</p>
+                                <p class="text-[15px] leading-relaxed">{{ $post->text }}</p>
                             @endif
                         </div>
                     @endforeach
