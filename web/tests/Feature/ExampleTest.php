@@ -18,7 +18,7 @@ test('tamu melihat halaman depan yang menjelaskan proyek, tanpa data kasus', fun
 test('angka evaluasi di halaman depan berasal dari berkas hasil uji', function () {
     $summary = App\Http\Controllers\EvaluationController::summary();
 
-    $this->get('/')->assertSee($summary['caught'].'<span class="text-2xl text-[#8d9a93]"> dari '.$summary['planted'].'</span>', false);
+    $this->get('/')->assertSee($summary['caught'] . '<span class="text-2xl text-[#8d9a93]"> dari ' . $summary['planted'] . '</span>', false);
 });
 
 test('pengguna yang sudah masuk diarahkan dari halaman depan ke daftar kasus', function () {
@@ -26,6 +26,8 @@ test('pengguna yang sudah masuk diarahkan dari halaman depan ke daftar kasus', f
 });
 
 test('halaman depan memakai header keamanan dan tidak memuat skrip sebaris', function () {
+    // CSP sengaja tidak dikirim saat `npm run dev` menyala (ada public/hot); test tidak boleh bergantung pada itu.
+    config(['radar.vite_hot_file' => storage_path('framework/testing/tidak-ada-hot')]);
     $response = $this->get('/');
 
     expect($response->headers->get('Content-Security-Policy'))->toContain("script-src 'self'");
