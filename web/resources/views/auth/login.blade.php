@@ -1,7 +1,13 @@
 <x-layouts.guest title="Masuk">
-    <div class="flex items-center gap-2.5">
-        <x-logo class="size-8 text-coord" />
-        <span class="text-xl font-semibold">SyncTrace</span>
+    <div class="flex items-center justify-between gap-4">
+        <a href="{{ route('home') }}" class="flex items-center gap-2.5 rounded-lg focus-visible:outline-3 focus-visible:outline-organic">
+            <x-logo class="size-8 text-coord" />
+            <span class="text-xl font-semibold">SyncTrace</span>
+        </a>
+        <a href="{{ route('home') }}" class="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[15px] font-medium text-muted hover:text-ink focus-visible:outline-3 focus-visible:outline-organic">
+            <svg viewBox="0 0 16 16" class="size-4 fill-none stroke-current stroke-2" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg>
+            Beranda
+        </a>
     </div>
 
     <section class="rounded-xl border border-line bg-white p-6 shadow-sm">

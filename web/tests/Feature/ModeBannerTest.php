@@ -14,3 +14,7 @@ test('mode publik tetap memberi tahu pengunjung bahwa datanya sintetis', functio
 
     $this->actingAs(User::factory()->create())->get(route('cases.index'))->assertSee('Mode publik.');
 });
+
+test('halaman masuk punya tautan kembali ke halaman depan', function () {
+    $this->get(route('login'))->assertOk()->assertSee('Beranda')->assertSee('href="'.route('home').'"', false);
+});

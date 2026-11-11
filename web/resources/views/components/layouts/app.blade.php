@@ -10,7 +10,7 @@
     @stack('head')
 </head>
 <body class="min-h-screen bg-paper font-sans text-ink antialiased print:bg-white">
-    <header class="bg-ink text-paper print:hidden">
+    <header class="sticky top-0 z-40 bg-ink text-paper print:hidden">
         <div class="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-2.5">
             <a href="{{ route('cases.index') }}" class="flex items-center gap-2.5 text-paper">
                 <x-logo class="size-7 text-[#e7b27a]" />

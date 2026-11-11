@@ -11,7 +11,8 @@
 <body class="bg-paper font-sans text-ink antialiased">
     <a href="#isi" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:font-medium">Lompat ke isi</a>
 
-    <header class="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
+    <header class="sticky top-0 z-40 border-b border-line/70 bg-paper/90 backdrop-blur-md">
+        <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 sm:px-8">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5 rounded-lg focus-visible:outline-3 focus-visible:outline-organic">
             <x-logo class="size-8 text-coord" />
             <span class="text-xl font-semibold tracking-tight">SyncTrace</span>
@@ -22,6 +23,7 @@
             <a href="#privasi" class="hidden min-h-11 items-center rounded-lg px-3 text-[15px] font-medium text-muted hover:text-ink sm:inline-flex">Privasi</a>
             <a href="{{ route('login') }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand px-5 font-semibold text-white transition-colors hover:bg-brand-dark focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-organic">Masuk</a>
         </nav>
+        </div>
     </header>
 
     <main id="isi">
@@ -86,7 +88,7 @@
         </section>
 
         {{-- Cara kerja --}}
-        <section id="cara-kerja" class="scroll-mt-6 border-y border-line bg-white">
+        <section id="cara-kerja" class="scroll-mt-20 border-y border-line bg-white">
             <div class="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[5fr_6fr]">
                 <div class="home-reveal">
                     <h2 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Empat sinyal. Klaster ditandai bila minimal dua muncul bersamaan.</h2>
@@ -160,7 +162,7 @@
         </section>
 
         {{-- Evaluasi --}}
-        <section id="evaluasi" class="scroll-mt-6 bg-ink text-white">
+        <section id="evaluasi" class="scroll-mt-20 bg-ink text-white">
             <div class="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
                 <div class="home-reveal max-w-3xl">
                     <h2 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Diuji dengan klaster buatan. Titik gagalnya ikut ditampilkan.</h2>
@@ -207,7 +209,7 @@
         </section>
 
         {{-- Privasi --}}
-        <section id="privasi" class="mx-auto max-w-6xl scroll-mt-6 px-5 py-20 sm:px-8 sm:py-28">
+        <section id="privasi" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:px-8 sm:py-28">
             <div class="grid gap-12 lg:grid-cols-[5fr_6fr]">
                 <div class="home-reveal">
                     <h2 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Membaca pola percakapan, bukan memantau orang.</h2>
