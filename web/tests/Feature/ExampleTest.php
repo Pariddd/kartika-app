@@ -18,7 +18,7 @@ test('tamu melihat halaman depan yang menjelaskan proyek, tanpa data kasus', fun
 test('angka evaluasi di halaman depan berasal dari berkas hasil uji', function () {
     $summary = App\Http\Controllers\EvaluationController::summary();
 
-    $this->get('/')->assertSee($summary['caught'] . '<span class="text-2xl text-[#8d9a93]"> dari ' . $summary['planted'] . '</span>', false);
+    $this->get('/')->assertSee($summary['caught'].'<span class="text-2xl text-[#8d9a93]"> dari '.$summary['planted'].'</span>', false);
 });
 
 test('pengguna yang sudah masuk diarahkan dari halaman depan ke daftar kasus', function () {

@@ -10,7 +10,6 @@
 </head>
 <body class="bg-paper font-sans text-ink antialiased">
     <a href="#isi" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:font-medium">Lompat ke isi</a>
-    <x-mode-banner />
 
     <header class="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
         <a href="{{ route('home') }}" class="flex items-center gap-2.5 rounded-lg focus-visible:outline-3 focus-visible:outline-organic">

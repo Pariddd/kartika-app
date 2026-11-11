@@ -9,7 +9,6 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-paper font-sans text-ink antialiased">
-    <x-mode-banner />
 
     <main class="mx-auto flex max-w-md flex-col gap-6 px-6 py-16">
         {{ $slot }}
