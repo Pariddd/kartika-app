@@ -3,6 +3,7 @@
 use App\Enums\Role;
 use App\Models\AuditLog;
 use App\Models\User;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 
@@ -73,5 +74,5 @@ test('peran tidak bisa diisi lewat mass assignment', function () {
         'email' => 'penyusup@radar.local',
         'password' => 'kata-sandi-panjang',
         'role' => 'admin',
-    ]))->toThrow(\Illuminate\Database\Eloquent\MassAssignmentException::class);
+    ]))->toThrow(MassAssignmentException::class);
 });

@@ -59,7 +59,7 @@ Bawaan Laravel, ditambah `role` enum: `admin`, `analis`, `demo`.
 | --- | --- | --- |
 | id | bigint PK | |
 | case_id | FK cases, on delete cascade | |
-| platform | enum `x`, `youtube`, `csv`, `synthetic` | |
+| platform | enum `x`, `youtube`, `instagram`, `tiktok`, `csv`, `synthetic` | |
 | account_key | char(64) | HMAC-SHA256 dari `platform:author_id` |
 | display_label | varchar(16) | `Akun-0001`, berurutan per kasus menurut waktu post pertama akun (bukan urutan data masuk), agar label tidak membocorkan pengelompokan |
 | display_name | varchar(100) null | nama tampilan dari platform; null secara bawaan. Hanya diisi worker bila `RADAR_STORE_ACCOUNT_NAMES=true` di mode lokal (lihat `docs/aturan-kerja.md`). Bukan ID dan bukan URL profil |
@@ -107,6 +107,19 @@ cluster_id, account_id. PK gabungan.
 ### `issue_scores` [P]
 id, case_id, job_id, organic_score numeric(4,3), total_posts integer, coordinated_posts integer, computed_at timestamptz.
 
+### `case_graphs` [P]
+case_id (FK cases, unique), job_id (FK analysis_jobs), graph jsonb, computed_at timestamptz. Satu baris per kasus, diganti setiap analisis.
+
+`graph` hanya untuk tampilan, sudah dipangkas (maksimal 400 simpul; tiap akun membawa 8 hubungan terkuatnya):
+```json
+{
+  "nodes": [{"id": 812, "x": 431, "y": 207, "cluster": "K-01", "flagged": true, "posts": 6, "links": 8}],
+  "edges": [{"a": 812, "b": 815, "text": true, "time": true, "w": 1.5}],
+  "total_nodes": 417, "total_edges": 1603, "truncated": true
+}
+```
+`id`, `a`, dan `b` adalah `accounts.id` internal. Koordinat 0–1000, dihitung worker dengan seed tetap. Tidak memuat kunci akun, nama, atau teks.
+
 ### `cluster_reviews` [L]
 id, cluster_id, user_id, verdict enum `terkoordinasi`, `keliru`, `belum_pasti`, note text null, created_at.
 
@@ -147,7 +160,9 @@ YouTube:
 }
 ```
 
-X via Apify (aktif hanya setelah izin panitia):
+X, Instagram, dan TikTok lewat impor ekspor Apify (paket gratis Apify umumnya tidak bisa memanggil Actor lewat API,
+jadi analis menjalankan Actor di Apify Console, mengekspor JSON, lalu mengunggahnya di form kasus baru).
+`platform` berisi `x`, `instagram`, atau `tiktok`:
 ```json
 {
   "schema_version": 1,
@@ -156,13 +171,17 @@ X via Apify (aktif hanya setelah izin panitia):
   "requested_by": 3,
   "params": {
     "platform": "x",
-    "query": "#ContohTagar",
+    "file_ref": "uploads/7f3c2a9e-5b1d-4c8e-9a20-1e6f3b7d8c41.json",
     "max_items": 500,
-    "since": "2026-11-01",
-    "until": "2026-11-02"
+    "query": "#ContohTagar"
   }
 }
 ```
+`file_ref` dibuat server (UUID). `query` hanya catatan kata kunci atau link yang dipakai di Apify, boleh `null`.
+Worker hanya membaca: id post, teks, waktu, id balasan, id percakapan, URL di teks, id penulis, tanggal pembuatan akun,
+jumlah followers/following, dan nama tampilan bila fitur nama dinyalakan. Nama field yang dicoba untuk tiap keterangan
+ada di `engine/radar/apify_import.py` (`FIELDS`). Bila tidak ada baris yang cocok, job gagal dengan pesan jelas dan
+tidak ada data yang tersimpan. Retweet dilewati. File dihapus setelah dibaca, berhasil atau gagal.
 
 Sintetis (data demo dengan kunci jawaban; **boleh** di mode publik karena bukan data nyata). Dibuat lewat `php artisan radar:demo {preset} --seed=N`:
 ```json
@@ -181,9 +200,11 @@ Sintetis (data demo dengan kunci jawaban; **boleh** di mode publik karena bukan 
 `preset`: `standar` (3 klaster tanaman + pengecoh sah), `kontrol` (hanya organik + pengecoh), `parafrase` (2 klaster berparafrase tinggi). `seed`: 0–2147483647; seed sama menghasilkan data identik.
 
 Batas, dicek di Laravel **dan** Python:
-- `max_items`: 1–1000 untuk X, 1–5000 untuk YouTube.
+- `max_items`: 1–20.000 untuk semua sumber data nyata. Form boleh dikosongkan; Laravel mengisinya dengan 20.000.
+  Batas ini ada karena memori analisis tumbuh kira-kira kuadratik (20.000 post sekitar 3 GB).
 - `video_ids`: 1–10 ID, masing-masing cocok dengan `^[A-Za-z0-9_-]{11}$`. Laravel mengekstrak ID dari link YouTube; yang dikirim ke antrean hanya ID.
-- `query`: 1–200 karakter.
+- `query` (X): opsional, maksimal 200 karakter.
+- File ekspor Apify: maksimal 200 MB, dan tidak lebih dari batas unggahan PHP (`upload_max_filesize`, `post_max_size`).
 - `since` dan `until` (X): opsional, format `YYYY-MM-DD` atau `null`; `until` tidak boleh sebelum `since`.
 - Kasus yang dibuat lewat formulir selalu `mode = live` dan langsung berstatus `collecting`, bersama satu job `collect` dalam satu transaksi.
 - Pemetaan `params` ke input Actor Apify dilakukan di adapter Python, karena nama field input berbeda per Actor.
@@ -264,7 +285,9 @@ Untuk `collect`: `posts`, `accounts`, `duplicates_skipped`, `duration_ms`, `warn
 
 ## 6. `cluster_signals.evidence`
 
-ID di bukti adalah `posts.id` atau `accounts.id` internal, tidak pernah ID asli platform. Setiap baris `cluster_signals` hanya memuat objek untuk sinyalnya sendiri.
+ID di bukti adalah `posts.id` atau `accounts.id` internal, tidak pernah ID asli platform. Bukti `text` juga memuat `narratives`: maksimal 3 narasi utama klaster, masing-masing `{"post": 101, "posts": 88, "accounts": 36, "share": 0.9}`. `post` adalah `posts.id` dari post asli yang mewakili kelompok post mirip; `accounts` dan `share` adalah jumlah dan porsi akun klaster yang menulisnya.
+
+Setiap baris `cluster_signals` hanya memuat objek untuk sinyalnya sendiri.
 
 **Kepadatan pasangan** (`pair_ratio`) = proporsi pasangan akun dalam klaster yang punya bukti. `baseline_ratio` = proporsi yang sama untuk seluruh pasangan akun di kasus. Sinyal teks dan waktu aktif bila kepadatan ≥ 0,3 **dan** minimal 5 kali baseline.
 

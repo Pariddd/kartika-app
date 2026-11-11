@@ -34,7 +34,10 @@ class ClusterController extends Controller
 
         // Post yang dirujuk bukti teks. Hanya post milik kasus ini yang diambil.
         $pairs = $signals->get(SignalType::Text->value)?->evidence['top_pairs'] ?? [];
-        $postIds = collect($pairs)->flatMap(fn ($pair) => [$pair['post_a'], $pair['post_b']])->unique()->all();
+        $narratives = $signals->get(SignalType::Text->value)?->evidence['narratives'] ?? [];
+        $postIds = collect($pairs)->flatMap(fn ($pair) => [$pair['post_a'], $pair['post_b']])
+            ->merge(array_column($narratives, 'post'))
+            ->unique()->all();
         $posts = Post::query()
             ->where('case_id', $case->getKey())
             ->whereIn('id', $postIds)
@@ -47,6 +50,7 @@ class ClusterController extends Controller
             'cluster' => $cluster,
             'signals' => $signals,
             'pairs' => $pairs,
+            'narratives' => $narratives,
             'posts' => $posts,
             'masked' => $case->mode === CaseMode::Live && config('radar.presentation_mask'),
             'showNames' => $showNames,

@@ -2,7 +2,8 @@
 
 - collect sintetis: membuat dataset demo beserta kunci jawaban (boleh di mode publik).
 - collect YouTube: komentar dan balasan lewat YouTube Data API v3 (radar.youtube), hanya mode lokal.
-- collect X: masih stub sampai izin panitia untuk Apify (hanya mode lokal).
+- collect X/Instagram/TikTok: impor hasil ekspor Apify (radar.apify_import), hanya mode lokal;
+  file dihapus setelah dibaca.
 - analyze_csv: baca CSV unggahan (radar.csv_input), ingest, lalu analisis; file dihapus setelah dibaca.
 - analyze: kemiripan teks + ko-aktivitas waktu -> klaster -> empat sinyal (radar.analysis).
 """
@@ -16,7 +17,7 @@ import psycopg
 
 from pathlib import Path
 
-from radar import csv_input, queue, synthetic, youtube
+from radar import apify_import, csv_input, queue, synthetic, youtube
 from radar.analysis import store
 from radar.analysis.model import Params
 from radar.analysis.pipeline import analyze
@@ -80,16 +81,33 @@ def handle_collect(
 
     if params["platform"] == "youtube":
         return collect_youtube(conn, job, payload, settings, started)
+    return collect_import(conn, job, payload, settings, started)
 
-    summary = {
-        "schema_version": SCHEMA_VERSION,
-        "posts": 0,
-        "accounts": 0,
-        "duplicates_skipped": 0,
-        "duration_ms": _elapsed_ms(started),
-        "warnings": [f"stub: adapter {params['platform']} belum diimplementasikan"],
-    }
+
+def collect_import(
+    conn: psycopg.Connection, job: Job, payload: dict[str, Any], settings: Settings, started: float
+) -> dict[str, Any]:
+    params = payload["params"]
+    pseudo = Pseudonymizer(settings.pseudo_key)
+    path = csv_input.resolve(settings.upload_dir, params["file_ref"], "json")
+
+    # File ekspor memuat profil lengkap penulis; dihapus setelah dibaca, berhasil atau gagal.
+    try:
+        imported = apify_import.read(path, params["platform"], params["max_items"], include_names=settings.names_enabled)
+    finally:
+        path.unlink(missing_ok=True)
+
     with conn.transaction():
+        result = ingest(conn, job.case_id, imported.posts, pseudo, store_names=settings.names_enabled)
+        summary = {
+            "schema_version": SCHEMA_VERSION,
+            "posts": result.posts_inserted,
+            "accounts": result.accounts_inserted,
+            "duplicates_skipped": result.duplicates_skipped,
+            "names_stored": settings.names_enabled,
+            "duration_ms": _elapsed_ms(started),
+            "warnings": imported.warnings,
+        }
         _finish_collect(conn, job, payload, summary)
     return summary
 

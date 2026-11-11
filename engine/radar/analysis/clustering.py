@@ -35,7 +35,7 @@ def build_graph(
         if not (has_text or has_time):
             continue
         weight = (min(text_n, 6) / 6 if has_text else 0) + (min(time_n, 6) / 6 if has_time else 0)
-        graph.add_edge(*key, weight=weight)
+        graph.add_edge(*key, weight=weight, text=has_text, time=has_time)
     return graph
 
 

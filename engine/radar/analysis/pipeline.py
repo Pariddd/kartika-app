@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from radar.analysis import clustering, coactivity, signals, text
+from radar.analysis import clustering, coactivity, network, signals, text
 from radar.analysis.model import Account, AnalysisResult, ClusterResult, Params, Post
 
 
@@ -54,4 +54,8 @@ def analyze(posts: list[Post], accounts: dict[int, Account], params: Params) -> 
     flagged_members = {a for c in results if c.flagged for a in c.members}
     coordinated = sum(len(posts_by_account[a]) for a in flagged_members)
 
-    return AnalysisResult(results, len(posts), coordinated, len(posts_by_account), warnings)
+    cluster_of = {account: (c.label, c.flagged) for c in results for account in c.members}
+    post_counts = {account: len(items) for account, items in posts_by_account.items()}
+    view = network.build(graph, cluster_of, post_counts, params.seed)
+
+    return AnalysisResult(results, len(posts), coordinated, len(posts_by_account), warnings, view)

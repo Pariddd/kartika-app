@@ -12,10 +12,11 @@ return [
     'mode' => AppMode::normalize(env('APP_MODE')),
 
     /*
-    | Sumber data. X via Apify hanya diaktifkan setelah ada izin tertulis panitia.
+    | Sumber data. Impor ekspor Apify (X, Instagram, TikTok) dinyalakan dengan RADAR_APIFY_ENABLED.
+    | RADAR_X_ENABLED adalah nama lama dan tetap dibaca.
     */
     'sources' => [
-        'x_enabled' => (bool) env('RADAR_X_ENABLED', false),
+        'import_enabled' => (bool) env('RADAR_APIFY_ENABLED', env('RADAR_X_ENABLED', false)),
     ],
 
     /*
@@ -23,8 +24,10 @@ return [
     */
     'collect' => [
         'max_video_ids' => 10,
-        'youtube_max_items' => 5000,
-        'x_max_items' => 1000,
+        // Batas per kasus untuk semua sumber data nyata. Memori analisis tumbuh kira-kira kuadratik
+        // (10.000 post sekitar 1,6 GB; 20.000 post sekitar 3 GB), jadi tidak bisa tanpa batas.
+        'max_items' => 20000,
+        'import_file_max_kb' => 204800,
         'query_max_length' => 200,
     ],
 
@@ -44,6 +47,12 @@ return [
     | untuk admin dan analis, dan selalu kalah oleh mode presentasi. Pasangannya di
     | engine/.env adalah RADAR_STORE_ACCOUNT_NAMES (tanpa itu nama tidak pernah disimpan).
     */
+    /*
+    | Penanda server pengembangan Vite (npm run dev). Selama file ini ada, CSP tidak dikirim
+    | karena aset dimuat dari origin lain. Di server hasil build file ini tidak pernah ada.
+    */
+    'vite_hot_file' => public_path('hot'),
+
     'show_account_names' => (bool) env('RADAR_SHOW_ACCOUNT_NAMES', false),
 
     /*

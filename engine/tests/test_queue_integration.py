@@ -182,6 +182,20 @@ def test_demo_sintetis_dianalisis_dan_hasil_tersimpan_sesuai_kontrak(conn, make_
     assert float(score["organic_score"]) == pytest.approx(summary["organic_score"])
 
 
+def test_analisis_menyimpan_data_graf_tanpa_identitas(conn, make_case):
+    case_id, _ = make_case(params={"platform": "synthetic", "preset": "standar", "seed": 4})
+    run_once(conn, settings())
+    run_once(conn, settings())
+
+    rows = conn.execute("SELECT graph FROM case_graphs WHERE case_id = %s", (case_id,)).fetchall()
+    assert len(rows) == 1
+    graph = rows[0]["graph"]
+    account_ids = {r["id"] for r in conn.execute("SELECT id FROM accounts WHERE case_id = %s", (case_id,))}
+    assert graph["nodes"] and {n["id"] for n in graph["nodes"]} <= account_ids
+    assert any(n["flagged"] for n in graph["nodes"])
+    assert set(graph["nodes"][0]) == {"id", "x", "y", "cluster", "flagged", "posts", "links"}
+
+
 def test_analisis_ulang_mengganti_hasil_lama(conn, make_case):
     case_id, _ = make_case(params={"platform": "synthetic", "preset": "standar", "seed": 4})
     run_once(conn, settings())
@@ -437,3 +451,90 @@ def test_collect_youtube_menyimpan_nama_hanya_bila_dinyalakan(conn, make_case, y
     assert "UCkanalAsliZ" not in repr(account)
     post = conn.execute("SELECT text FROM posts WHERE case_id = %s", (case_id,)).fetchone()
     assert "😂" in post["text"]  # emoji tersimpan utuh (database UTF-8)
+
+
+@pytest.mark.skipif(not UPLOAD_DIR, reason="RADAR_TEST_UPLOAD_DIR tidak diisi")
+def test_impor_x_dari_apify_menyimpan_data_terpseudonimisasi_dan_menghapus_file(conn, make_case):
+    import json
+    from pathlib import Path
+
+    def item(tid, author, minute):
+        return {
+            "type": "tweet", "id": tid, "text": f"Pasar Lama harus dipindah {tid}", "fullText": f"Pasar Lama harus dipindah {tid}",
+            "createdAt": f"Tue Oct 13 10:{minute:02d}:00 +0000 2026", "conversationId": tid, "isRetweet": False,
+            "author": {"id": author, "userName": "usernameAsliX", "name": "Nama Asli X", "description": "bio asli",
+                       "followers": 10, "following": 20, "createdAt": "Sat Apr 25 13:13:52 +0000 2020"},
+            "entities": {"urls": []},
+        }
+
+    ref = f"uploads/{uuid.uuid4()}.json"
+    path = Path(UPLOAD_DIR) / ref
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps([{"noResults": True}, item("1001", "501", 1), item("1002", "502", 2), item("1003", "501", 3)]), encoding="utf-8")
+
+    case_id, job_id = make_case(params={"platform": "x", "file_ref": ref, "max_items": 100, "query": "#Uji"})
+    run_once(conn, settings())
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "done", job["error"]
+    assert job["result_summary"]["posts"] == 3 and job["result_summary"]["accounts"] == 2
+    assert not path.exists()
+
+    accounts = conn.execute("SELECT * FROM accounts WHERE case_id = %s ORDER BY id", (case_id,)).fetchall()
+    assert all(a["platform"] == "x" and a["account_created_at"] is not None and a["display_name"] is None for a in accounts)
+    dump = repr(accounts) + repr(conn.execute("SELECT * FROM posts WHERE case_id = %s", (case_id,)).fetchall())
+    for raw in ("usernameAsliX", "Nama Asli X", "bio asli", '"501"', "'1001'"):
+        assert raw not in dump
+
+
+@pytest.mark.skipif(not UPLOAD_DIR, reason="RADAR_TEST_UPLOAD_DIR tidak diisi")
+def test_impor_x_ditolak_di_mode_publik_dan_file_tidak_dibaca(conn, make_case):
+    ref = f"uploads/{uuid.uuid4()}.json"
+    case_id, job_id = make_case(params={"platform": "x", "file_ref": ref, "max_items": 100})
+    run_once(conn, settings("public"))
+    job = job_row(conn, job_id)
+    assert job["status"] == "failed" and job["error"] == COLLECT_DISABLED
+
+
+@pytest.mark.skipif(not UPLOAD_DIR, reason="RADAR_TEST_UPLOAD_DIR tidak diisi")
+@pytest.mark.parametrize("platform", ["instagram", "tiktok"])
+def test_impor_instagram_dan_tiktok_tersimpan_dengan_platformnya(conn, make_case, platform):
+    import json
+    from pathlib import Path
+
+    ref = f"uploads/{uuid.uuid4()}.json"
+    path = Path(UPLOAD_DIR) / ref
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps([
+        {"id": "9001", "text": "promo terbaik", "timestamp": "2026-11-01T05:00:00Z", "ownerUsername": "usernameAsliIG", "uid": "77001"},
+        {"cid": "9002", "text": "setuju", "createTime": 1793509200, "uid": "77002", "repliesToId": "9001"},
+    ]), encoding="utf-8")
+
+    case_id, job_id = make_case(params={"platform": platform, "file_ref": ref, "max_items": 20000})
+    run_once(conn, settings())
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "done", job["error"]
+    assert job["result_summary"]["posts"] == 2 and not path.exists()
+    rows = conn.execute("SELECT platform FROM posts WHERE case_id = %s", (case_id,)).fetchall()
+    assert {r["platform"] for r in rows} == {platform}
+    assert "usernameAsliIG" not in repr(conn.execute("SELECT * FROM accounts WHERE case_id = %s", (case_id,)).fetchall())
+
+
+@pytest.mark.skipif(not UPLOAD_DIR, reason="RADAR_TEST_UPLOAD_DIR tidak diisi")
+def test_impor_dengan_format_tak_dikenal_gagal_tanpa_menyimpan_data(conn, make_case):
+    import json
+    from pathlib import Path
+
+    ref = f"uploads/{uuid.uuid4()}.json"
+    path = Path(UPLOAD_DIR) / ref
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps([{"komentar": "halo", "pengguna": "a"}]), encoding="utf-8")
+
+    case_id, job_id = make_case(params={"platform": "tiktok", "file_ref": ref, "max_items": 100})
+    run_once(conn, settings())
+
+    job = job_row(conn, job_id)
+    assert job["status"] == "failed" and "belum dikenali" in job["error"]
+    assert not path.exists()
+    assert conn.execute("SELECT count(*) AS n FROM posts WHERE case_id = %s", (case_id,)).fetchone()["n"] == 0

@@ -79,7 +79,8 @@ Keduanya hanya berkomunikasi lewat PostgreSQL. Laravel **tidak pernah** memanggi
 
 - Biaya pembangunan Rp0: hanya paket gratis. Jangan menambah layanan berbayar atau dependensi yang butuh kunci berbayar.
 - Fitur dibekukan **11 November 2026**. Setelah itu hanya perbaikan bug, deploy, dan dokumentasi.
-- Di luar cakupan: Telegram dan platform lain, streaming real-time, ringkasan LLM, aplikasi mobile, melatih model sendiri, OSINT berpusat pada orang.
+- Sumber data: YouTube (API resmi) dan impor file ekspor Apify untuk X, Instagram, TikTok (keputusan ketua tim 11 November 2026).
+- Di luar cakupan: Telegram dan platform lain di luar daftar di atas, streaming real-time, ringkasan LLM, aplikasi mobile, melatih model sendiri, OSINT berpusat pada orang.
 - Aset front-end (termasuk library graf) dibundel lewat Vite, bukan dari CDN, agar aplikasi jalan offline.
 
 ## Konvensi

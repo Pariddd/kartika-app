@@ -3,6 +3,26 @@
 use App\Models\User;
 use Illuminate\Support\Facades\File;
 
+beforeEach(function () {
+    // Test tidak boleh bergantung pada "npm run dev" yang sedang menyala di laptop (file public/hot).
+    config(['radar.vite_hot_file' => storage_path('framework/testing/tidak-ada-hot')]);
+});
+
+test('saat server pengembangan Vite menyala CSP tidak dikirim, header lain tetap ada', function () {
+    $hot = storage_path('framework/testing/hot-uji');
+    @mkdir(dirname($hot), 0777, true);
+    file_put_contents($hot, 'http://localhost:5173');
+    config(['radar.vite_hot_file' => $hot]);
+
+    try {
+        $this->get(route('login'))
+            ->assertHeaderMissing('Content-Security-Policy')
+            ->assertHeader('X-Frame-Options', 'DENY');
+    } finally {
+        @unlink($hot);
+    }
+});
+
 test('setiap halaman membawa header keamanan dan CSP tanpa sumber luar', function () {
     $response = $this->get(route('login'))->assertOk();
 

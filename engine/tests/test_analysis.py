@@ -124,3 +124,35 @@ def test_post_dari_akun_yang_sama_tidak_dianggap_mirip():
 
     pairs, _ = similar_pairs(posts, Params())
     assert pairs == []
+
+
+def test_narasi_utama_diwakili_post_asli_dan_diurutkan_menurut_jumlah_akun():
+    from radar.analysis.signals import narratives
+    from radar.analysis.text import SimilarPair
+
+    # Narasi A: post 1-4 dari 4 akun (post 2 paling banyak miripnya). Narasi B: post 10-11 dari 2 akun.
+    # Post 20-21 ditulis akun yang sama, jadi bukan narasi bersama.
+    pairs = [
+        SimilarPair(1, 2, "minhash", 0.9), SimilarPair(2, 3, "minhash", 0.9), SimilarPair(2, 4, "tfidf", 0.7),
+        SimilarPair(10, 11, "minhash", 0.95), SimilarPair(20, 21, "minhash", 1.0),
+    ]
+    account = {1: 101, 2: 102, 3: 103, 4: 104, 10: 105, 11: 106, 20: 107, 21: 107}
+
+    found = narratives(pairs, account, cluster_size=8)
+
+    assert [n["post"] for n in found] == [2, 10]
+    assert found[0] == {"post": 2, "posts": 4, "accounts": 4, "share": 0.5}
+    assert found[1]["accounts"] == 2
+
+
+def test_klaster_tanaman_punya_narasi_utama_di_bukti_teks():
+    dataset = synthetic.generate("standar", 4)
+    posts, accounts, _ = to_analysis_input(dataset)
+    result = analyze(posts, accounts, Params())
+    post_ids = {p.id for p in posts}
+
+    for cluster in (c for c in result.clusters if c.flagged):
+        text = next(s for s in cluster.signals if s.signal == "text")
+        found = text.evidence["narratives"]
+        assert 1 <= len(found) <= 3
+        assert all(n["post"] in post_ids and n["accounts"] >= 2 and 0 < n["share"] <= 1 for n in found)

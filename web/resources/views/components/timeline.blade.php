@@ -42,7 +42,7 @@
                 $coordDraw = max(0, $coordH - ($both ? $gap : 0));
             @endphp
             <g class="[&:hover>.hit]:fill-black/5">
-                <title>{{ $b['label'] }}: {{ Format::number($b['total']) }} post@if ($timeline['has_coordinated']), {{ Format::number($b['coordinated']) }} dari klaster ditandai@endif</title>
+                <title>{{ $b['label'] }}: {{ Format::number($b['total']) }} post{{ $timeline['has_coordinated'] ? ', '.Format::number($b['coordinated']).' dari klaster ditandai' : '' }}</title>
                 <rect class="hit" x="{{ $left + $i * $slot }}" y="{{ $top }}" width="{{ $slot }}" height="{{ $plotH }}" fill="transparent" />
                 @if ($b['other'] > 0)
                     <rect x="{{ $x }}" y="{{ $top + $plotH - $otherH }}" width="{{ $bar }}" height="{{ $otherH }}" rx="{{ $b['coordinated'] > 0 ? 0 : 2 }}" class="fill-organic" />

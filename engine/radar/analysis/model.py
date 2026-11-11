@@ -97,6 +97,8 @@ class AnalysisResult:
     coordinated_posts: int
     total_accounts: int
     warnings: list[str] = field(default_factory=list)
+    # Data graf untuk ditampilkan (radar.analysis.network); None bila tidak ada post.
+    graph: dict[str, Any] | None = None
 
     @property
     def organic_score(self) -> float:

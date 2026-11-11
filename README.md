@@ -11,7 +11,7 @@ Sistem ini bukan pendeteksi bot, bukan pendeteksi hoaks, dan tidak menilai opini
 
 | Fitur | Keterangan |
 | --- | --- |
-| Kasus pemantauan | Komentar YouTube (YouTube Data API v3), data sintetis untuk demo, atau CSV unggahan |
+| Kasus pemantauan | Komentar YouTube (YouTube Data API v3); X, Instagram, dan TikTok lewat impor file ekspor Apify; data sintetis untuk demo; atau CSV unggahan |
 | Empat sinyal | Kemiripan teks, ko-aktivitas waktu, profil akun, infrastruktur (domain). Klaster ditandai bila minimal 2 sinyal aktif terhadap baseline kasus |
 | Bukti yang bisa diperiksa | Pasangan teks mirip, kejadian serentak, domain khas, anggota klaster |
 | Lini waktu | Post per rentang waktu, dipisah antara klaster ditandai dan post lain |
@@ -94,11 +94,12 @@ Semua angka berasal dari data sintetis dan **bukan** akurasi pada data dunia nya
 - Hasil hanya berlaku untuk sampel yang dikumpulkan.
 - Sinyal profil tidak tersedia untuk YouTube (API tidak memberi tanggal pembuatan kanal).
 - Kemiripan teks memakai MinHash dan TF-IDF karakter; parafrase bebas oleh model bahasa belum diuji.
-- Pengumpulan dari X belum diaktifkan.
+- X, Instagram, dan TikTok masuk lewat impor file ekspor Apify, bukan pengambilan langsung. Format Instagram dan TikTok baru diuji dengan data tiruan.
+- Satu kasus dibatasi 20.000 post karena kebutuhan memori analisis.
 
 ## Pustaka dan layanan pihak ketiga
 
-Laravel, Pest, Tailwind CSS, Vite, IBM Plex (via Fontsource), psycopg, scikit-learn, NumPy, NetworkX, datasketch, python-dotenv, PostgreSQL, YouTube Data API v3.
+Laravel, Pest, Tailwind CSS, Vite, IBM Plex (via Fontsource), psycopg, scikit-learn, NumPy, NetworkX, datasketch, python-dotenv, PostgreSQL, YouTube Data API v3, Apify (Actor pihak ketiga, dijalankan terpisah oleh analis).
 Semuanya open source atau dipakai sesuai ketentuan layanannya. Tidak ada layanan berbayar.
 
 ## Deklarasi

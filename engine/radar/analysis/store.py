@@ -29,6 +29,7 @@ def save(conn: psycopg.Connection, case_id: int, job_id: int, result: AnalysisRe
     # Penilaian analis atas klaster lama ikut terhapus (cascade); analisis ulang menghasilkan klaster baru.
     conn.execute("DELETE FROM clusters WHERE case_id = %s", (case_id,))
     conn.execute("DELETE FROM issue_scores WHERE case_id = %s", (case_id,))
+    conn.execute("DELETE FROM case_graphs WHERE case_id = %s", (case_id,))
 
     for cluster in result.clusters:
         cluster_id = conn.execute(
@@ -60,3 +61,9 @@ def save(conn: psycopg.Connection, case_id: int, job_id: int, result: AnalysisRe
         """,
         (case_id, job_id, round(result.organic_score, 3), result.total_posts, result.coordinated_posts),
     )
+
+    if result.graph and result.graph["nodes"]:
+        conn.execute(
+            "INSERT INTO case_graphs (case_id, job_id, graph, computed_at) VALUES (%s, %s, %s, now())",
+            (case_id, job_id, Jsonb(result.graph)),
+        )

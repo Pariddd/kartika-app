@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\Platform;
+use App\Support\UploadLimit;
 use App\Support\YouTubeVideoId;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -27,9 +28,27 @@ class StoreCaseRequest extends FormRequest
      */
     public static function enabledPlatforms(): array
     {
-        return config('radar.sources.x_enabled')
-            ? [Platform::YouTube->value, Platform::X->value]
-            : [Platform::YouTube->value];
+        $imported = config('radar.sources.import_enabled')
+            ? array_map(fn (Platform $p) => $p->value, Platform::imported())
+            : [];
+
+        return [Platform::YouTube->value, ...$imported];
+    }
+
+    /**
+     * Jumlah maksimal post boleh dikosongkan: artinya "ambil semua yang tersedia",
+     * yang tetap dibatasi batas atas per kasus.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (trim((string) $this->input('max_items')) === '') {
+            $this->merge(['max_items' => config('radar.collect.max_items')]);
+        }
+    }
+
+    public function isImport(): bool
+    {
+        return Platform::tryFrom((string) $this->input('platform'))?->isImported() ?? false;
     }
 
     /**
@@ -37,17 +56,16 @@ class StoreCaseRequest extends FormRequest
      */
     public function rules(): array
     {
-        $isX = $this->input('platform') === Platform::X->value;
-        $maxItems = $isX ? config('radar.collect.x_max_items') : config('radar.collect.youtube_max_items');
+        $isImport = $this->isImport();
 
         return [
             'name' => ['required', 'string', 'max:200'],
             'platform' => ['required', 'string', Rule::in(self::enabledPlatforms())],
-            'max_items' => ['required', 'integer', 'min:1', 'max:'.$maxItems],
-            'video_urls' => [Rule::requiredIf(! $isX), 'nullable', 'string', 'max:5000'],
-            'query' => [Rule::requiredIf($isX), 'nullable', 'string', 'max:'.config('radar.collect.query_max_length')],
-            'since' => ['nullable', 'date_format:Y-m-d'],
-            'until' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:since'],
+            'max_items' => ['required', 'integer', 'min:1', 'max:'.config('radar.collect.max_items')],
+            'video_urls' => [Rule::requiredIf(! $isImport), 'nullable', 'string', 'max:5000'],
+            // X, Instagram, TikTok: hasil ekspor JSON dari Apify Console.
+            'import_file' => [Rule::requiredIf($isImport), 'nullable', 'file', 'max:'.UploadLimit::importKilobytes(), 'extensions:json', 'mimetypes:application/json,text/plain'],
+            'query' => ['nullable', 'string', 'max:'.config('radar.collect.query_max_length')],
         ];
     }
 
@@ -64,13 +82,15 @@ class StoreCaseRequest extends FormRequest
             'max_items.required' => 'Jumlah maksimal post wajib diisi.',
             'max_items.integer' => 'Jumlah maksimal post harus berupa angka.',
             'max_items.min' => 'Jumlah maksimal post minimal 1.',
-            'max_items.max' => 'Jumlah maksimal post untuk sumber ini adalah :max.',
+            'max_items.max' => 'Jumlah maksimal post per kasus adalah :max. Di atas itu memori analisis tidak cukup.',
             'video_urls.required' => 'Isi minimal satu link atau ID video YouTube.',
-            'query.required' => 'Kata kunci atau tagar wajib diisi.',
-            'query.max' => 'Kata kunci maksimal :max karakter.',
-            'since.date_format' => 'Format tanggal mulai harus YYYY-MM-DD.',
-            'until.date_format' => 'Format tanggal akhir harus YYYY-MM-DD.',
-            'until.after_or_equal' => 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
+            'import_file.required' => 'Unggah file JSON hasil ekspor Apify.',
+            'import_file.file' => 'Unggahan file gagal; coba lagi.',
+            'import_file.uploaded' => 'File gagal diunggah. Kemungkinan ukurannya melebihi batas unggahan PHP di komputer ini ('.UploadLimit::label().').',
+            'import_file.max' => 'Ukuran file melebihi batas '.UploadLimit::label().'.',
+            'import_file.extensions' => 'File harus berformat .json (Export → JSON di Apify).',
+            'import_file.mimetypes' => 'File harus berformat JSON.',
+            'query.max' => 'Catatan kata kunci maksimal :max karakter.',
         ];
     }
 
@@ -82,6 +102,19 @@ class StoreCaseRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                if (! $this->isImport() || $validator->errors()->has('import_file')) {
+                    return;
+                }
+                // Pemeriksaan murah saja (file bisa ratusan MB): ekspor JSON Apify selalu berupa daftar.
+                // Isi tiap baris diperiksa oleh worker Python.
+                $handle = fopen($this->file('import_file')->getRealPath(), 'rb');
+                $head = ltrim((string) fread($handle, 64), "\xEF\xBB\xBF \t\r\n");
+                fclose($handle);
+                if (! str_starts_with($head, '[')) {
+                    $validator->errors()->add('import_file', 'Isi file bukan daftar JSON. Di Apify pilih Export → JSON (bukan JSONL, CSV, atau Excel).');
+                }
+            },
             function (Validator $validator): void {
                 if ($this->input('platform') !== Platform::YouTube->value || $validator->errors()->has('video_urls')) {
                     return;
@@ -122,15 +155,14 @@ class StoreCaseRequest extends FormRequest
      *
      * @return array<string, mixed>
      */
-    public function collectParams(): array
+    public function collectParams(?string $fileRef = null): array
     {
-        if ($this->input('platform') === Platform::X->value) {
+        if ($this->isImport()) {
             return [
-                'platform' => Platform::X->value,
-                'query' => trim((string) $this->input('query')),
+                'platform' => (string) $this->input('platform'),
+                'file_ref' => $fileRef,
                 'max_items' => (int) $this->input('max_items'),
-                'since' => $this->input('since') ?: null,
-                'until' => $this->input('until') ?: null,
+                'query' => trim((string) $this->input('query')) ?: null,
             ];
         }
 

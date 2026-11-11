@@ -6,6 +6,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from itertools import combinations
+from typing import Any
 from urllib.parse import urlsplit
 
 from radar.analysis.model import Account, Params, Post, SignalResult
@@ -70,6 +71,7 @@ def text_signal(members: set[int], ctx: TextContext) -> SignalResult:
         if ctx.post_account[p.post_a] in members and ctx.post_account[p.post_b] in members
     ]
     top = sorted(inside, key=lambda p: (-p.score, p.post_a))[:5]
+    account_of = ctx.post_account
 
     return SignalResult(
         "text",
@@ -80,8 +82,53 @@ def text_signal(members: set[int], ctx: TextContext) -> SignalResult:
             "baseline_ratio": round(ctx.baseline, 4),
             "similar_post_pairs": len(inside),
             "top_pairs": [{"post_a": p.post_a, "post_b": p.post_b, "method": p.method, "score": p.score} for p in top],
+            "narratives": narratives(inside, account_of, len(members)),
         },
     )
+
+
+MAX_NARRATIVES = 3
+
+
+def narratives(pairs: list[SimilarPair], post_account: dict[int, int], cluster_size: int) -> list[dict[str, Any]]:
+    """Narasi utama klaster: kelompok post yang saling mirip, diurutkan menurut jumlah akun yang menulisnya.
+
+    Tiap kelompok diwakili satu post yang mirip dengan paling banyak post lain di kelompoknya
+    (yang paling "tengah"). Tidak ada teks yang dibuat sistem: wakilnya selalu post asli.
+    """
+    parent: dict[int, int] = {}
+
+    def find(x: int) -> int:
+        while parent.setdefault(x, x) != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    links: Counter[int] = Counter()
+    for pair in pairs:
+        parent[find(pair.post_a)] = find(pair.post_b)
+        links[pair.post_a] += 1
+        links[pair.post_b] += 1
+
+    groups: dict[int, list[int]] = defaultdict(list)
+    for post in parent:
+        groups[find(post)].append(post)
+
+    found = []
+    for posts in groups.values():
+        accounts = {post_account[p] for p in posts}
+        if len(accounts) < 2:
+            continue
+        representative = min(posts, key=lambda p: (-links[p], p))
+        found.append({
+            "post": representative,
+            "posts": len(posts),
+            "accounts": len(accounts),
+            "share": round(len(accounts) / cluster_size, 3) if cluster_size else 0.0,
+        })
+
+    found.sort(key=lambda n: (-n["accounts"], -n["posts"], n["post"]))
+    return found[:MAX_NARRATIVES]
 
 
 # ------------------------------------------------------------------ waktu

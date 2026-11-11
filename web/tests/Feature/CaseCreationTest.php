@@ -8,9 +8,12 @@ use App\Models\AnalysisJob;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\User;
+use App\Support\UploadLimit;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
-    config(['radar.mode' => 'local', 'radar.sources.x_enabled' => false]);
+    config(['radar.mode' => 'local', 'radar.sources.import_enabled' => false]);
 });
 
 function validYouTubeCase(array $overrides = []): array
@@ -84,7 +87,7 @@ test('validasi kasus YouTube', function (array $overrides, string $field) {
     expect(CaseFile::count())->toBe(0)->and(AnalysisJob::count())->toBe(0);
 })->with([
     'nama kosong' => [['name' => ''], 'name'],
-    'max_items melebihi batas YouTube' => [['max_items' => 5001], 'max_items'],
+    'max_items melebihi batas' => [['max_items' => 20001], 'max_items'],
     'max_items nol' => [['max_items' => 0], 'max_items'],
     'tanpa video' => [['video_urls' => ''], 'video_urls'],
     'hanya baris kosong' => [['video_urls' => "\n  \n"], 'video_urls'],
@@ -93,44 +96,110 @@ test('validasi kasus YouTube', function (array $overrides, string $field) {
     'platform tidak dikenal' => [['platform' => 'telegram'], 'platform'],
 ]);
 
+function apifyExport(?array $items = null): UploadedFile
+{
+    $items ??= [
+        ['type' => 'tweet', 'noResults' => true],
+        ['type' => 'tweet', 'id' => '2109961287283384573', 'text' => 'isi', 'createdAt' => 'Tue Oct 13 10:55:46 +0000 2026', 'author' => ['id' => '1', 'userName' => 'fiktif']],
+    ];
+
+    return UploadedFile::fake()->createWithContent('dataset_tweet-scraper.json', json_encode($items));
+}
+
 test('X ditolak selama belum diaktifkan', function () {
     $this->actingAs(User::factory()->create())
-        ->post('/kasus', ['name' => 'Tagar', 'platform' => 'x', 'query' => '#ContohTagar', 'max_items' => 100])
+        ->post('/kasus', ['name' => 'Tagar', 'platform' => 'x', 'import_file' => apifyExport(), 'max_items' => 100])
         ->assertSessionHasErrors('platform');
 });
 
-test('X yang sudah diaktifkan menghasilkan payload sesuai kontrak', function () {
-    config(['radar.sources.x_enabled' => true]);
-    $user = User::factory()->create();
+test('impor X menyimpan file dengan nama buatan server dan payload sesuai kontrak', function () {
+    config(['radar.sources.import_enabled' => true]);
+    Storage::fake('local');
 
-    $this->actingAs($user)->post('/kasus', [
+    $this->actingAs(User::factory()->create())->post('/kasus', [
         'name' => 'Tagar',
         'platform' => 'x',
+        'import_file' => apifyExport(),
         'query' => '  #ContohTagar ',
         'max_items' => 500,
-        'since' => '2026-11-01',
-        'until' => '2026-11-02',
     ])->assertSessionHasNoErrors();
 
-    expect(AnalysisJob::sole()->payload['params'])->toEqual([
-        'platform' => 'x',
-        'query' => '#ContohTagar',
-        'max_items' => 500,
-        'since' => '2026-11-01',
-        'until' => '2026-11-02',
-    ]);
+    $params = AnalysisJob::sole()->payload['params'];
+    expect($params)->toHaveKeys(['platform', 'file_ref', 'max_items', 'query'])
+        ->and($params['platform'])->toBe('x')
+        ->and($params['query'])->toBe('#ContohTagar')
+        ->and($params['max_items'])->toBe(500)
+        ->and($params['file_ref'])->toMatch('#^uploads/[0-9a-f-]{36}\.json$#');
+    Storage::disk('local')->assertExists($params['file_ref']);
 });
 
-test('validasi kasus X', function (array $input, string $field) {
-    config(['radar.sources.x_enabled' => true]);
+test('validasi impor X', function (array $input, string $field) {
+    config(['radar.sources.import_enabled' => true]);
+    Storage::fake('local');
 
     $this->actingAs(User::factory()->create())
-        ->post('/kasus', array_merge(['name' => 'Tagar', 'platform' => 'x', 'query' => '#Tagar', 'max_items' => 100], $input))
+        ->post('/kasus', array_merge(['name' => 'Tagar', 'platform' => 'x', 'import_file' => apifyExport(), 'max_items' => 100], $input))
         ->assertSessionHasErrors($field);
+
+    expect(Storage::disk('local')->allFiles())->toBe([]);
 })->with([
-    'max_items melebihi batas X' => [['max_items' => 1001], 'max_items'],
-    'tanpa kata kunci' => [['query' => ''], 'query'],
-    'kata kunci terlalu panjang' => [['query' => str_repeat('a', 201)], 'query'],
-    'tanggal akhir sebelum mulai' => [['since' => '2026-11-02', 'until' => '2026-11-01'], 'until'],
-    'format tanggal salah' => [['since' => '02/11/2026'], 'since'],
+    'tanpa file' => [['import_file' => null], 'import_file'],
+    'bukan JSON' => [['import_file' => UploadedFile::fake()->createWithContent('data.csv', "akun,teks\n1,a")], 'import_file'],
+    'JSON rusak' => [['import_file' => UploadedFile::fake()->createWithContent('data.json', '{rusak')], 'import_file'],
+    'objek, bukan daftar' => [['import_file' => UploadedFile::fake()->createWithContent('data.json', '{"items":[]}')], 'import_file'],
+    'max_items melebihi batas' => [['max_items' => 20001], 'max_items'],
+    'catatan terlalu panjang' => [['query' => str_repeat('a', 201)], 'query'],
 ]);
+
+test('impor Instagram dan TikTok memakai alur yang sama dengan X', function (string $platform) {
+    config(['radar.sources.import_enabled' => true]);
+    Storage::fake('local');
+
+    $this->actingAs(User::factory()->create())->post('/kasus', [
+        'name' => 'Komentar promo',
+        'platform' => $platform,
+        'import_file' => UploadedFile::fake()->createWithContent('dataset.json', '[{"id":"1","text":"a","timestamp":"2026-11-01T05:00:00Z","ownerUsername":"x"}]'),
+    ])->assertSessionHasNoErrors();
+
+    $job = AnalysisJob::sole();
+    expect($job->payload['params']['platform'])->toBe($platform)
+        ->and($job->payload['params']['file_ref'])->toMatch('#^uploads/[0-9a-f-]{36}\.json$#')
+        ->and($job->case->sources)->toBe([$platform]);
+})->with(['instagram', 'tiktok']);
+
+test('jumlah maksimal post yang dikosongkan berarti batas atas per kasus', function () {
+    $this->actingAs(User::factory()->create())->post('/kasus', [
+        'name' => 'Tanpa batas',
+        'platform' => 'youtube',
+        'video_urls' => 'https://youtu.be/dQw4w9WgXcQ',
+        'max_items' => '',
+    ])->assertSessionHasNoErrors();
+
+    expect(AnalysisJob::sole()->payload['params']['max_items'])->toBe(20000);
+});
+
+test('form hanya menawarkan impor Apify bila diaktifkan', function () {
+    $analis = User::factory()->create();
+
+    config(['radar.sources.import_enabled' => false]);
+    $this->actingAs($analis)->get('/kasus/baru')->assertOk()
+        ->assertSee('Belum diaktifkan (RADAR_APIFY_ENABLED)')
+        ->assertDontSee('File JSON hasil ekspor');
+
+    config(['radar.sources.import_enabled' => true]);
+    $this->actingAs($analis)->get('/kasus/baru')->assertOk()
+        ->assertSee('Instagram')->assertSee('TikTok')
+        ->assertSee('File JSON hasil ekspor')
+        ->assertSee('data-source="x instagram tiktok"', false);
+});
+
+test('batas unggahan mengikuti nilai terkecil antara konfigurasi dan PHP', function () {
+    expect(UploadLimit::bytes('8M'))->toBe(8 * 1024 * 1024)
+        ->and(UploadLimit::bytes('512K'))->toBe(512 * 1024)
+        ->and(UploadLimit::bytes('1G'))->toBe(1024 ** 3)
+        ->and(UploadLimit::bytes('0'))->toBe(0)
+        ->and(UploadLimit::bytes(''))->toBe(0);
+
+    config(['radar.collect.import_file_max_kb' => 1]);
+    expect(UploadLimit::importKilobytes())->toBe(1)->and(UploadLimit::label())->toBe('1 KB');
+});

@@ -22,3 +22,14 @@
     --color-info-line: #c9daf0;
     --color-info-ink: #17407a;
 }
+
+/*
+ * Form kasus baru: hanya bagian milik sumber data terpilih yang tampil.
+ * Murni CSS (:has), jadi tetap bekerja tanpa JavaScript dan tidak berkedip saat halaman dimuat.
+ */
+[data-source-form]:has(input[name="platform"][value="youtube"]:checked) [data-source]:not([data-source~="youtube"]),
+[data-source-form]:has(input[name="platform"][value="x"]:checked) [data-source]:not([data-source~="x"]),
+[data-source-form]:has(input[name="platform"][value="instagram"]:checked) [data-source]:not([data-source~="instagram"]),
+[data-source-form]:has(input[name="platform"][value="tiktok"]:checked) [data-source]:not([data-source~="tiktok"]) {
+    display: none;
+}

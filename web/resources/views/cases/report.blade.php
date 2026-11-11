@@ -83,6 +83,12 @@
                         @foreach ($r['clusters'] as $row)
                             <div class="break-inside-avoid">
                                 <h3 class="font-semibold">Klaster <span class="font-mono">{{ $row['model']->display_label }}</span> · {{ $row['active']->count() }} sinyal aktif</h3>
+                                @if ($row['narrative'])
+                                    <p class="mt-1.5 text-[15px] leading-relaxed text-[#2f3833]">
+                                        <strong class="font-medium">Narasi utama</strong> (ditulis dalam bentuk mirip oleh {{ $row['narrative']['accounts'] }} dari {{ $row['model']->size }} akun):
+                                        <span class="italic">“{{ $row['narrative']['text'] }}”</span>
+                                    </p>
+                                @endif
                                 <ul class="mt-1.5 list-disc pl-5 text-[15px] leading-relaxed text-[#2f3833]">
                                     @foreach ($row['active'] as $signal)
                                         <li><strong class="font-medium">{{ $signal->signal->label() }}:</strong> {{ SignalExplainer::sentence($signal) }}</li>

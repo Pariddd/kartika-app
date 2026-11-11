@@ -24,17 +24,18 @@ MAX_TEXT = 1000
 MAX_ACCOUNT = 100
 WIB = timezone(timedelta(hours=7))
 
-FILE_REF = re.compile(r"^uploads/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.csv$")
+UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+FILE_REF = {ext: re.compile(rf"^uploads/{UUID}\.{ext}$") for ext in ("csv", "json")}
 TIME = re.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:?\d{2})?$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def resolve(upload_dir: str, file_ref: object) -> Path:
+def resolve(upload_dir: str, file_ref: object, ext: str = "csv") -> Path:
     """Path file unggahan. Hanya nama UUID buatan server di dalam folder unggahan yang diterima
     (mencegah path traversal, CWE-22)."""
     if not upload_dir:
         raise ConfigError("RADAR_UPLOAD_DIR di engine/.env wajib diisi (folder web/storage/app/private)")
-    if not isinstance(file_ref, str) or not FILE_REF.fullmatch(file_ref):
+    if not isinstance(file_ref, str) or not FILE_REF[ext].fullmatch(file_ref):
         raise PayloadError("file_ref tidak valid")
     base = Path(upload_dir).resolve()
     path = (base / file_ref).resolve()

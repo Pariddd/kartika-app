@@ -35,7 +35,11 @@ RADAR_TEST_DSN="host=127.0.0.1 dbname=radar_narasi user=radar_web password=..." 
 - collect `youtube`: komentar + balasan lewat YouTube Data API v3 (`radar/youtube.py`), butuh `YOUTUBE_API_KEY`.
   ID kanal di-HMAC; URL dan foto profil tidak dibaca. Nama tampilan hanya disimpan bila
   `RADAR_STORE_ACCOUNT_NAMES=true` di mode lokal (lihat `docs/aturan-kerja.md`). Sekitar 1 unit kuota per 100 komentar.
-- collect `x`: stub sampai izin panitia untuk Apify.
+- collect `x`, `instagram`, `tiktok`: impor file JSON hasil ekspor Apify (`radar/apify_import.py`). Paket gratis Apify
+  umumnya tidak bisa memanggil Actor lewat API, jadi Actor dijalankan di Apify Console lalu hasilnya diunggah di web.
+  Pembaca mencoba nama field yang lazim dan gagal dengan pesan jelas bila format Actor tidak dikenali.
+  Sudah diuji dengan ekspor asli `apidojo/tweet-scraper`; format Instagram dan TikTok baru diuji dengan data tiruan.
+  Retweet dilewati; bio, lokasi, dan foto tidak dibaca; file dihapus setelah diimpor.
 - analyze: MinHash + TF-IDF karakter (teks), ko-aktivitas waktu, graf + Louvain
   (`radar/analysis/louvain.py`, implementasi sendiri yang dijamin berhenti), empat sinyal terhadap baseline.
 - analyze_csv: CSV unggahan; file dihapus setelah dibaca.

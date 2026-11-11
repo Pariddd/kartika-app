@@ -20,3 +20,6 @@ engine/models/
 .idea/
 Thumbs.db
 .DS_Store
+
+# File usang yang menunggu dihapus manual
+_to_delete/

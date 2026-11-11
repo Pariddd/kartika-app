@@ -9,13 +9,17 @@ use App\Enums\JobType;
 use App\Http\Requests\StoreCaseRequest;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
+use App\Models\User;
 use App\Support\AnswerKey;
+use App\Support\CaseNetwork;
 use App\Support\CaseTimeline;
 use App\Support\JobPayload;
+use App\Support\UploadLimit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CaseController extends Controller
@@ -38,8 +42,10 @@ class CaseController extends Controller
     public function create(): View
     {
         return view('cases.create', [
-            'xEnabled' => (bool) config('radar.sources.x_enabled'),
+            'importEnabled' => (bool) config('radar.sources.import_enabled'),
             'limits' => config('radar.collect'),
+            'uploadLimit' => UploadLimit::label(),
+            'uploadLimitedByPhp' => UploadLimit::limitedByPhp(),
         ]);
     }
 
@@ -49,9 +55,37 @@ class CaseController extends Controller
     public function store(StoreCaseRequest $request): RedirectResponse
     {
         $user = $request->user();
-        $params = $request->collectParams();
 
-        $case = DB::transaction(function () use ($request, $user, $params): CaseFile {
+        // File ekspor Apify disimpan di storage privat dengan nama buatan server; worker menghapusnya setelah dibaca.
+        $fileRef = null;
+        if ($request->isImport()) {
+            // storeAs menyalin lewat stream, jadi file besar tidak dimuat ke memori PHP.
+            $fileRef = $request->file('import_file')->storeAs('uploads', Str::uuid()->toString().'.json', 'local');
+        }
+        $params = $request->collectParams($fileRef);
+
+        try {
+            $case = $this->createLiveCase($request, $user, $params);
+        } catch (\Throwable $error) {
+            if ($fileRef !== null) {
+                Storage::disk('local')->delete($fileRef);
+            }
+            throw $error;
+        }
+
+        AuditLog::record('cases.store', $user->getKey(), $case->getKey(), $request->ip());
+
+        return redirect()
+            ->route('cases.show', $case)
+            ->with('status', $fileRef ? 'Kasus dibuat. File Apify masuk antrean untuk diimpor.' : 'Kasus dibuat. Job pengumpulan data masuk antrean.');
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function createLiveCase(StoreCaseRequest $request, User $user, array $params): CaseFile
+    {
+        return DB::transaction(function () use ($request, $user, $params): CaseFile {
             $case = CaseFile::create([
                 'name' => $request->string('name')->trim()->toString(),
                 'mode' => CaseMode::Live,
@@ -69,12 +103,6 @@ class CaseController extends Controller
 
             return $case;
         });
-
-        AuditLog::record('cases.store', $user->getKey(), $case->getKey(), $request->ip());
-
-        return redirect()
-            ->route('cases.show', $case)
-            ->with('status', 'Kasus dibuat. Job pengumpulan data masuk antrean.');
     }
 
     public function show(CaseFile $case): View
@@ -124,6 +152,7 @@ class CaseController extends Controller
             'hasAnswerKey' => $hasAnswerKey,
             'answer' => $answer,
             'timeline' => CaseTimeline::build($case),
+            'network' => CaseNetwork::build($case),
         ]);
     }
 
@@ -139,10 +168,10 @@ class CaseController extends Controller
             return back()->withErrors(['confirm' => 'Kasus sedang diproses worker. Tunggu sampai selesai, lalu hapus.']);
         }
 
-        // File unggahan yang belum sempat dibaca worker ikut dihapus.
-        foreach ($case->jobs()->where('job_type', JobType::AnalyzeCsv->value)->get() as $job) {
+        // File unggahan (CSV atau ekspor Apify) yang belum sempat dibaca worker ikut dihapus.
+        foreach ($case->jobs()->get() as $job) {
             $fileRef = $job->payload['params']['file_ref'] ?? null;
-            if (is_string($fileRef) && preg_match('#^uploads/[0-9a-f-]{36}\.csv$#', $fileRef)) {
+            if (is_string($fileRef) && preg_match('#^uploads/[0-9a-f-]{36}\.(csv|json)$#', $fileRef)) {
                 Storage::disk('local')->delete($fileRef);
             }
         }

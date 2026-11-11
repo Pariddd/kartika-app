@@ -61,6 +61,25 @@
         </div>
     </section>
 
+    @if ($narratives !== [])
+        <section aria-labelledby="judul-narasi" class="mt-6 rounded-xl border border-line bg-white p-5">
+            <h2 id="judul-narasi" class="text-lg font-semibold">Narasi utama</h2>
+            <p class="text-sm text-muted">Apa yang didorong klaster ini: kelompok post yang saling mirip, diwakili satu post asli. Sistem tidak menulis ulang atau meringkas teks.</p>
+            <ol class="mt-4 flex flex-col gap-3">
+                @foreach ($narratives as $narrative)
+                    @php $post = $posts->get($narrative['post']); @endphp
+                    <li class="flex flex-col gap-2 rounded-lg bg-[#fafbf9] px-4 py-3">
+                        <x-post-text :post="$post" :masked="$masked" />
+                        <span class="text-sm text-muted">
+                            Ditulis dalam bentuk mirip oleh <strong class="font-semibold text-ink">{{ Format::number($narrative['accounts']) }} dari {{ Format::number($cluster->size) }} akun</strong>
+                            ({{ SignalExplainer::pct($narrative['share']) }}) · {{ Format::number($narrative['posts']) }} post
+                        </span>
+                    </li>
+                @endforeach
+            </ol>
+        </section>
+    @endif
+
     @if ($pairs !== [])
         <section aria-labelledby="judul-teks" class="mt-6 rounded-xl border border-line bg-white">
             <div class="border-b border-[#e4e7e1] px-5 py-4">
@@ -75,15 +94,7 @@
                         @php $post = $posts->get($postId); @endphp
                         <div class="flex flex-col gap-1.5 rounded-lg bg-[#fafbf9] px-3.5 py-3">
                             <span class="font-mono text-xs text-muted">{{ $post?->account?->display_label ?? '–' }}@if ($showNames && $post?->account?->display_name) <span class="font-sans text-ink">({{ $post->account->display_name }})</span>@endif · {{ Format::wib($post?->posted_at) }}</span>
-                            @if ($masked)
-                                <p class="text-[15px] italic text-muted">[teks disamarkan · mode presentasi]</p>
-                            @elseif ($post === null)
-                                <p class="text-[15px] italic text-muted">Post tidak ditemukan.</p>
-                            @elseif (ContentMask::display($post->text) === ContentMask::PLACEHOLDER)
-                                <p class="text-[15px] italic text-muted">{{ ContentMask::PLACEHOLDER }} <span class="text-xs not-italic">· memuat kata dari daftar penyamaran</span></p>
-                            @else
-                                <p class="text-[15px] leading-relaxed">{{ $post->text }}</p>
-                            @endif
+                            <x-post-text :post="$post" :masked="$masked" />
                         </div>
                     @endforeach
                     <div class="flex flex-col gap-1">

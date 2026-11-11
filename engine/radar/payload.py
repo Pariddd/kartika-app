@@ -17,9 +17,12 @@ __all__ = ["PayloadError", "validate_envelope", "validate_collect_params", "SYNT
 SCHEMA_VERSION = 1
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 MAX_VIDEO_IDS = 10
-YOUTUBE_MAX_ITEMS = 5000
-X_MAX_ITEMS = 1000
+# Batas per kasus untuk semua sumber data nyata. Memori analisis tumbuh kira-kira kuadratik:
+# 10.000 post butuh sekitar 1,6 GB, 20.000 post sekitar 3 GB.
+MAX_ITEMS = 20_000
 QUERY_MAX_LENGTH = 200
+IMPORT_PLATFORMS = ("x", "instagram", "tiktok")
+IMPORT_FILE_REF = re.compile(r"^uploads/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json$")
 SYNTHETIC_PRESETS = ("standar", "kontrol", "parafrase")
 MAX_SEED = 2**31 - 1
 
@@ -82,18 +85,18 @@ def validate_collect_params(params: dict[str, Any]) -> dict[str, Any]:
             raise PayloadError(f"video_ids harus berisi 1-{MAX_VIDEO_IDS} ID")
         if not all(isinstance(v, str) and VIDEO_ID.fullmatch(v) for v in video_ids):
             raise PayloadError("video_ids berisi ID yang tidak valid")
-        _check_max_items(params.get("max_items"), YOUTUBE_MAX_ITEMS)
+        _check_max_items(params.get("max_items"), MAX_ITEMS)
         return params
 
-    if platform == "x":
+    if platform in IMPORT_PLATFORMS:
+        # Impor hasil ekspor Apify (paket gratis tidak bisa memanggil Actor lewat API).
+        file_ref = params.get("file_ref")
+        if not isinstance(file_ref, str) or not IMPORT_FILE_REF.fullmatch(file_ref):
+            raise PayloadError("file_ref harus uploads/<uuid>.json")
         query = params.get("query")
-        if not isinstance(query, str) or not 1 <= len(query.strip()) <= QUERY_MAX_LENGTH:
-            raise PayloadError(f"query harus 1-{QUERY_MAX_LENGTH} karakter")
-        _check_max_items(params.get("max_items"), X_MAX_ITEMS)
-        since = _check_date("since", params.get("since"))
-        until = _check_date("until", params.get("until"))
-        if since and until and until < since:
-            raise PayloadError("until tidak boleh sebelum since")
+        if query is not None and (not isinstance(query, str) or len(query) > QUERY_MAX_LENGTH):
+            raise PayloadError(f"query maksimal {QUERY_MAX_LENGTH} karakter")
+        _check_max_items(params.get("max_items"), MAX_ITEMS)
         return params
 
     if platform == "synthetic":

@@ -132,6 +132,14 @@
         </section>
     @endif
 
+    @if ($network)
+        <section aria-labelledby="judul-graf" class="mt-6 rounded-xl border border-line bg-white p-5">
+            <h2 id="judul-graf" class="text-lg font-semibold">Graf koordinasi</h2>
+            <p class="mb-4 text-sm text-muted">Siapa bergerak bersama siapa. Klaster terkoordinasi tampak sebagai gumpalan rapat; percakapan organik tersebar longgar.</p>
+            <x-network :network="$network" />
+        </section>
+    @endif
+
     @if ($case->clusters->isEmpty())
         <section class="mt-6 rounded-xl border border-dashed border-[#b9bfb6] px-6 py-10 text-center">
             <h2 class="font-semibold">Hasil analisis</h2>

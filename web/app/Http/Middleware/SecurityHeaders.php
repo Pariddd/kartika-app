@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -27,7 +26,7 @@ class SecurityHeaders
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
         // Server pengembangan Vite (npm run dev) memakai origin lain; CSP hanya untuk aset hasil build.
-        if (! Vite::isRunningHot()) {
+        if (! is_file(config('radar.vite_hot_file'))) {
             $response->headers->set('Content-Security-Policy', implode('; ', [
                 "default-src 'self'",
                 "script-src 'self'",

@@ -11,3 +11,5 @@ document.addEventListener('click', (event) => {
         window.print();
     }
 });
+
+import './graph';

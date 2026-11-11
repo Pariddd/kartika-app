@@ -13,13 +13,15 @@ use App\Models\Cluster;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Ringkasan BLUF (bottom line up front) satu kasus: kesimpulan di kalimat pertama,
  * lalu bukti, status penilaian analis, saran tindak lanjut, dan keterbatasan.
  *
  * Semua kalimat dibangun dari angka hasil analisis dengan aturan tetap, bukan model bahasa,
- * sehingga setiap klaim bisa ditelusuri ke halaman bukti. Tidak memuat teks post atau domain.
+ * sehingga setiap klaim bisa ditelusuri ke halaman bukti. Satu-satunya teks post yang dimuat adalah
+ * narasi utama tiap klaster (post asli, mengikuti penyamaran konten dan mode presentasi). Tidak memuat domain.
  */
 final class CaseReport
 {
@@ -50,6 +52,7 @@ final class CaseReport
         $analysis = self::latestJob($case, [JobType::Analyze, JobType::AnalyzeCsv]);
         $collect = self::latestJob($case, [JobType::Collect]);
         $postsByCluster = self::postsByCluster($flagged);
+        $narratives = self::narratives($case, $flagged);
 
         $period = DB::table('posts')->where('case_id', $case->getKey())
             ->selectRaw('min(posted_at) as first_at, max(posted_at) as last_at, count(*) as posts, count(distinct account_id) as accounts')
@@ -74,6 +77,7 @@ final class CaseReport
             'clusters' => $flagged->map(fn (Cluster $c) => [
                 'model' => $c,
                 'posts' => $postsByCluster[$c->id] ?? 0,
+                'narrative' => $narratives[$c->id] ?? null,
                 'active' => $c->signals->where('active', true)->sortBy(fn ($s) => array_search($s->signal, SignalType::ordered(), true))->values(),
             ]),
             'flagged_accounts' => $flagged->sum('size'),
@@ -218,6 +222,46 @@ final class CaseReport
         }
 
         return array_values(array_unique($items));
+    }
+
+    /**
+     * Narasi teratas tiap klaster ditandai: teks post wakilnya (dipotong) dan berapa akun yang menulisnya.
+     *
+     * @param  Collection<int, Cluster>  $flagged
+     * @return array<int, array{text: string, accounts: int, share: float}>
+     */
+    private static function narratives(CaseFile $case, Collection $flagged): array
+    {
+        $top = [];
+        foreach ($flagged as $cluster) {
+            $evidence = $cluster->signals->first(fn ($s) => $s->signal === SignalType::Text)?->evidence ?? [];
+            if (! empty($evidence['narratives'][0]['post'])) {
+                $top[$cluster->id] = $evidence['narratives'][0];
+            }
+        }
+        if ($top === []) {
+            return [];
+        }
+
+        $texts = DB::table('posts')
+            ->where('case_id', $case->getKey())
+            ->whereIn('id', array_column($top, 'post'))
+            ->pluck('text', 'id');
+        $masked = $case->mode === CaseMode::Live && config('radar.presentation_mask');
+
+        $result = [];
+        foreach ($top as $clusterId => $narrative) {
+            if (! isset($texts[$narrative['post']])) {
+                continue;
+            }
+            $result[$clusterId] = [
+                'text' => $masked ? '[teks disamarkan · mode presentasi]' : ContentMask::display(Str::limit($texts[$narrative['post']], 220)),
+                'accounts' => (int) $narrative['accounts'],
+                'share' => (float) $narrative['share'],
+            ];
+        }
+
+        return $result;
     }
 
     /**

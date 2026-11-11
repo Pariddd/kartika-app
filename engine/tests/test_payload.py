@@ -37,12 +37,13 @@ def test_envelope_ditolak(payload):
 
 
 def test_youtube_valid():
-    params = {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ", "9bZkp7q19f0"], "max_items": 5000}
+    params = {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ", "9bZkp7q19f0"], "max_items": 20000}
     assert validate_collect_params(params) is params
 
 
-def test_x_valid():
-    params = {"platform": "x", "query": "#Tagar", "max_items": 1000, "since": "2026-11-01", "until": None}
+@pytest.mark.parametrize("platform", ["x", "instagram", "tiktok"])
+def test_impor_valid(platform):
+    params = {"platform": platform, "file_ref": "uploads/7f3c2a9e-5b1d-4c8e-9a20-1e6f3b7d8c41.json", "max_items": 20000, "query": "#Tagar"}
     assert validate_collect_params(params) is params
 
 
@@ -54,15 +55,15 @@ def test_x_valid():
         {"platform": "youtube", "video_ids": ["a" * 11] * 11, "max_items": 10},
         {"platform": "youtube", "video_ids": ["pendek"], "max_items": 10},
         {"platform": "youtube", "video_ids": ["dQw4w9WgXc<"], "max_items": 10},
-        {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ"], "max_items": 5001},
+        {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ"], "max_items": 20001},
         {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ"], "max_items": 0},
         {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ"], "max_items": "10"},
         {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ"], "max_items": True},
-        {"platform": "x", "query": "", "max_items": 10},
-        {"platform": "x", "query": "a" * 201, "max_items": 10},
-        {"platform": "x", "query": "#T", "max_items": 1001},
-        {"platform": "x", "query": "#T", "max_items": 10, "since": "02/11/2026"},
-        {"platform": "x", "query": "#T", "max_items": 10, "since": "2026-11-02", "until": "2026-11-01"},
+        {"platform": "x", "max_items": 10},
+        {"platform": "x", "file_ref": "uploads/../../.env", "max_items": 10},
+        {"platform": "x", "file_ref": "uploads/7f3c2a9e-5b1d-4c8e-9a20-1e6f3b7d8c41.csv", "max_items": 10},
+        {"platform": "x", "file_ref": "uploads/7f3c2a9e-5b1d-4c8e-9a20-1e6f3b7d8c41.json", "max_items": 20001},
+        {"platform": "x", "file_ref": "uploads/7f3c2a9e-5b1d-4c8e-9a20-1e6f3b7d8c41.json", "max_items": 10, "query": "a" * 201},
     ],
 )
 def test_collect_params_ditolak(params):
