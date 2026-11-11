@@ -22,6 +22,7 @@ final class AuditAction
         'clusters.show' => 'Membuka bukti klaster',
         'clusters.review' => 'Menilai klaster',
         'clusters.names' => 'Melihat nama akun klaster',
+        'cases.names' => 'Melihat nama akun di graf',
         'upload.create' => 'Membuka Coba Sendiri',
         'upload.store' => 'Mengunggah CSV',
         'audit.index' => 'Membuka log audit',

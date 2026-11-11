@@ -44,6 +44,8 @@ FIELDS: dict[str, tuple[str, ...]] = {
     "reply_to": ("inReplyToId", "repliesToId", "replyToId", "parentId", "parentCommentId", "parent_comment_id", "replyToCommentId"),
     "conversation": ("conversationId", "postId", "post_id", "awemeId", "aweme_id", "postUrl", "videoWebUrl", "videoUrl", "submittedVideoUrl", "inputUrl"),
     "name": ("author.name", "owner.full_name", "owner.fullName", "ownerFullName", "user.nickname", "nickname", "user.full_name", "fullName", "displayName"),
+    # @username; hanya dibaca bila fitur nama menyala (mode lokal), digabung dengan nama tampilan.
+    "handle": ("author.userName", "ownerUsername", "owner.username", "user.username", "uniqueId", "user.uniqueId", "user.unique_id", "username"),
     "account_created_at": ("author.createdAt",),
     "followers": ("author.followers",),
     "following": ("author.following",),
@@ -156,6 +158,19 @@ def _walk(items: list[Any], parent: str | None = None) -> Iterator[tuple[dict[st
                 yield from _walk(nested, own_id)
 
 
+def _author_label(item: dict[str, Any]) -> str | None:
+    """Nama tampilan dan @username penulis, misalnya "Budi Santoso (@budi_s)"."""
+    name = _first(item, "name")
+    handle = _first(item, "handle")
+    name = name.strip() if isinstance(name, str) else ""
+    handle = handle.strip().lstrip("@") if isinstance(handle, str) else ""
+    if name and handle and name.lower() != handle.lower():
+        return f"{name} (@{handle})"
+    if handle:
+        return f"@{handle}"
+    return name or None
+
+
 def read(path: Path, platform: str, max_items: int, *, include_names: bool = False) -> ImportResult:
     if platform not in PLATFORMS:
         raise PayloadError("platform impor tidak dikenal")
@@ -198,7 +213,7 @@ def read(path: Path, platform: str, max_items: int, *, include_names: bool = Fal
             continue
         seen.add(post_id)
 
-        name = _first(item, "name") if include_names else None
+        name = _author_label(item) if include_names else None
         result.posts.append(
             RawPost(
                 platform=platform,
@@ -212,7 +227,7 @@ def read(path: Path, platform: str, max_items: int, *, include_names: bool = Fal
                 reply_to_id=_id(_first(item, "reply_to")) or parent,
                 conversation_id=_id(_first(item, "conversation")),
                 urls=_urls(item),
-                author_name=name if isinstance(name, str) else None,
+                author_name=name,
             )
         )
 

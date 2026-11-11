@@ -145,10 +145,14 @@ function initGraph(root) {
         const title = document.createElement('strong');
         title.className = 'font-mono';
         title.textContent = n.label;
+        // Nama akun hanya dikirim server untuk admin dan analis (mode lokal).
+        const name = document.createElement('div');
+        name.textContent = n.name || '';
+        name.hidden = !n.name;
         const body = document.createElement('div');
         body.className = 'text-muted';
         body.textContent = describe(n);
-        tip.append(title, body);
+        tip.append(title, name, body);
         tip.hidden = false;
         const box = svg.getBoundingClientRect();
         const x = Math.min(event.clientX - box.left + 14, box.width - 270);
@@ -161,7 +165,7 @@ function initGraph(root) {
         highlight(n);
         panel.hidden = !n;
         if (!n) return;
-        panel.querySelector('[data-graph-panel-title]').textContent = n.label;
+        panel.querySelector('[data-graph-panel-title]').textContent = n.name ? `${n.label} · ${n.name}` : n.label;
         panel.querySelector('[data-graph-panel-body]').textContent = describe(n);
         const link = panel.querySelector('[data-graph-panel-link]');
         const url = n.cluster ? data.clusterUrls[n.cluster] : null;

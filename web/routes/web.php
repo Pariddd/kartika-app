@@ -6,8 +6,12 @@ use App\Http\Controllers\CaseController;
 use App\Http\Controllers\CaseReportController;
 use App\Http\Controllers\ClusterController;
 use App\Http\Controllers\EvaluationController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
+
+// Halaman depan publik. Pengguna yang sudah masuk langsung diarahkan ke daftar kasus.
+Route::get('/', HomeController::class)->name('home');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -17,7 +21,6 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::redirect('/', '/kasus');
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
     // Setiap akses halaman kasus tercatat di audit_logs, termasuk yang ditolak.

@@ -6,7 +6,7 @@
     $buckets = $timeline['buckets'];
     $n = count($buckets);
     $w = 960; $h = 240;
-    $left = 44; $right = 8; $top = 10; $bottom = 28;
+    $left = 44; $right = 8; $top = 18; $bottom = 28;
     $plotW = $w - $left - $right;
     $plotH = $h - $top - $bottom;
     $slot = $plotW / $n;
@@ -22,6 +22,13 @@
         <ul class="flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label="Keterangan warna">
             <li class="flex items-center gap-2"><span class="size-3 rounded-sm bg-coord" aria-hidden="true"></span>Post dari klaster ditandai</li>
             <li class="flex items-center gap-2"><span class="size-3 rounded-sm bg-organic" aria-hidden="true"></span>Post lain</li>
+            @if ($timeline['spike_count'] > 0)
+                <li class="flex items-center gap-2"><svg viewBox="0 0 10 8" class="h-2 w-2.5 fill-ink" aria-hidden="true"><path d="M5 8 0 0h10z"/></svg>Lonjakan</li>
+            @endif
+        </ul>
+    @elseif ($timeline['spike_count'] > 0)
+        <ul class="flex flex-wrap gap-x-5 gap-y-1 text-sm" aria-label="Keterangan">
+            <li class="flex items-center gap-2"><svg viewBox="0 0 10 8" class="h-2 w-2.5 fill-ink" aria-hidden="true"><path d="M5 8 0 0h10z"/></svg>Lonjakan</li>
         </ul>
     @endif
 
@@ -42,7 +49,7 @@
                 $coordDraw = max(0, $coordH - ($both ? $gap : 0));
             @endphp
             <g class="[&:hover>.hit]:fill-black/5">
-                <title>{{ $b['label'] }}: {{ Format::number($b['total']) }} post{{ $timeline['has_coordinated'] ? ', '.Format::number($b['coordinated']).' dari klaster ditandai' : '' }}</title>
+                <title>{{ $b['label'] }}: {{ Format::number($b['total']) }} post{{ $timeline['has_coordinated'] ? ', '.Format::number($b['coordinated']).' dari klaster ditandai' : '' }}{{ $b['spike'] ? ' (lonjakan)' : '' }}</title>
                 <rect class="hit" x="{{ $left + $i * $slot }}" y="{{ $top }}" width="{{ $slot }}" height="{{ $plotH }}" fill="transparent" />
                 @if ($b['other'] > 0)
                     <rect x="{{ $x }}" y="{{ $top + $plotH - $otherH }}" width="{{ $bar }}" height="{{ $otherH }}" rx="{{ $b['coordinated'] > 0 ? 0 : 2 }}" class="fill-organic" />
@@ -51,6 +58,10 @@
                     <rect x="{{ $x }}" y="{{ $top + $plotH - $otherH - $coordH }}" width="{{ $bar }}" height="{{ $coordDraw }}" rx="2" class="fill-coord" />
                 @endif
             </g>
+            @if ($b['spike'])
+                @php $cx = $left + $i * $slot + $slot / 2; $tipY = $top + $plotH - $otherH - $coordH - 4; @endphp
+                <path d="M{{ $cx }} {{ $tipY }} l-5 -8 h10 z" class="fill-ink" />
+            @endif
             @if ($i % $tickEvery === 0)
                 <text x="{{ $left + $i * $slot + $slot / 2 }}" y="{{ $h - 8 }}" text-anchor="middle" class="fill-muted" font-size="12">{{ $b['tick'] }}</text>
             @endif
@@ -65,6 +76,26 @@
             ({{ Format::number($timeline['coordinated_peak']['coordinated']) }} dari {{ Format::number($timeline['coordinated_peak']['total']) }} post).
         @endif
     </figcaption>
+
+    @if ($timeline['spike_count'] > 0)
+        <div class="rounded-lg bg-paper px-4 py-3 text-sm leading-relaxed">
+            <p class="font-semibold">{{ $timeline['spike_count'] }} lonjakan terdeteksi</p>
+            <ul class="mt-1 flex flex-col gap-1">
+                @foreach ($timeline['spikes'] as $spike)
+                    <li>
+                        {{ $spike['label'] }}: <span class="font-mono">{{ Format::number($spike['total']) }}</span> post{{ $spike['ratio'] !== null ? ', '.Format::number((int) round($spike['ratio'])).' kali nilai tengah' : '' }}.
+                        @if ($timeline['has_coordinated'])
+                            <span @class(['font-medium text-coord-ink' => $spike['coordinated_share'] >= 0.5])>{{ Format::percent($spike['coordinated_share']) }} dari klaster ditandai.</span>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+            <p class="mt-2 text-xs text-muted">
+                Lonjakan = rentang dengan jumlah post jauh di atas kebiasaan kasus ini (nilai tengah {{ Format::number((int) round($timeline['median'])) }} post per {{ $timeline['bucket_label'] }}).
+                Lonjakan bisa organik, misalnya saat ada berita besar; yang perlu diperiksa adalah lonjakan yang sebagian besar berasal dari klaster ditandai.
+            </p>
+        </div>
+    @endif
 
     <details class="text-sm">
         <summary class="cursor-pointer text-organic">Lihat sebagai tabel</summary>

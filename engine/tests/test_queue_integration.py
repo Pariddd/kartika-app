@@ -538,3 +538,30 @@ def test_impor_dengan_format_tak_dikenal_gagal_tanpa_menyimpan_data(conn, make_c
     assert job["status"] == "failed" and "belum dikenali" in job["error"]
     assert not path.exists()
     assert conn.execute("SELECT count(*) AS n FROM posts WHERE case_id = %s", (case_id,)).fetchone()["n"] == 0
+
+
+def test_teks_dengan_username_asli_hanya_disimpan_bila_nama_dinyalakan(conn, make_case):
+    from datetime import datetime, timezone
+
+    from radar.ingest import RawPost, ingest
+    from radar.pseudo import Pseudonymizer
+
+    pseudo = Pseudonymizer("kunci-uji-" + "x" * 32)
+    at = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
+    posts = [
+        RawPost("x", "a1", "p1", "setuju dengan @budi_asli soal ini", at),
+        RawPost("x", "a2", "p2", "tanpa mention sama sekali", at),
+    ]
+
+    nyala, _ = make_case()
+    ingest(conn, nyala, posts, pseudo, store_names=True)
+    rows = conn.execute("SELECT text, text_raw FROM posts WHERE case_id = %s ORDER BY id", (nyala,)).fetchall()
+    assert "@u_" in rows[0]["text"] and "budi_asli" not in rows[0]["text"]  # masukan analisis tetap tersamar
+    assert rows[0]["text_raw"] == "setuju dengan @budi_asli soal ini"
+    assert rows[1]["text_raw"] is None  # sama dengan teks tersamar, tidak disimpan dua kali
+
+    mati, _ = make_case()
+    ingest(conn, mati, posts, pseudo)
+    rows = conn.execute("SELECT text, text_raw FROM posts WHERE case_id = %s", (mati,)).fetchall()
+    assert all(r["text_raw"] is None for r in rows)
+    assert "budi_asli" not in repr(rows)

@@ -6,6 +6,7 @@ bisa saja ditulis oleh kode lain atau diubah manual.
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date
 from typing import Any
@@ -19,7 +20,23 @@ VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 MAX_VIDEO_IDS = 10
 # Batas per kasus untuk semua sumber data nyata. Memori analisis tumbuh kira-kira kuadratik:
 # 10.000 post butuh sekitar 1,6 GB, 20.000 post sekitar 3 GB.
+# Batas bisa diubah lewat RADAR_MAX_ITEMS (isi nilai yang sama di web/.env dan engine/.env).
 MAX_ITEMS = 20_000
+MAX_ITEMS_CEILING = 200_000
+
+
+def max_items() -> int:
+    """Dibaca saat dipakai, bukan saat impor modul, karena .env dimuat setelahnya."""
+    raw = os.getenv("RADAR_MAX_ITEMS", "").strip()
+    if not raw:
+        return MAX_ITEMS
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise PayloadError("RADAR_MAX_ITEMS di engine/.env harus bilangan bulat") from exc
+    if not 1 <= value <= MAX_ITEMS_CEILING:
+        raise PayloadError(f"RADAR_MAX_ITEMS di engine/.env harus 1-{MAX_ITEMS_CEILING}")
+    return value
 QUERY_MAX_LENGTH = 200
 IMPORT_PLATFORMS = ("x", "instagram", "tiktok")
 IMPORT_FILE_REF = re.compile(r"^uploads/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.json$")
@@ -85,7 +102,7 @@ def validate_collect_params(params: dict[str, Any]) -> dict[str, Any]:
             raise PayloadError(f"video_ids harus berisi 1-{MAX_VIDEO_IDS} ID")
         if not all(isinstance(v, str) and VIDEO_ID.fullmatch(v) for v in video_ids):
             raise PayloadError("video_ids berisi ID yang tidak valid")
-        _check_max_items(params.get("max_items"), MAX_ITEMS)
+        _check_max_items(params.get("max_items"), max_items())
         return params
 
     if platform in IMPORT_PLATFORMS:
@@ -96,7 +113,7 @@ def validate_collect_params(params: dict[str, Any]) -> dict[str, Any]:
         query = params.get("query")
         if query is not None and (not isinstance(query, str) or len(query) > QUERY_MAX_LENGTH):
             raise PayloadError(f"query maksimal {QUERY_MAX_LENGTH} karakter")
-        _check_max_items(params.get("max_items"), MAX_ITEMS)
+        _check_max_items(params.get("max_items"), max_items())
         return params
 
     if platform == "synthetic":

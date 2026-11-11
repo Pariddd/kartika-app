@@ -117,7 +117,7 @@
                            class="w-full rounded-lg border border-dashed border-[#b9bfb6] bg-[#fafbf9] p-3 text-sm file:mr-3 file:min-h-10 file:cursor-pointer file:rounded-md file:border file:border-[#b9bfb6] file:bg-white file:px-4 file:font-medium">
                     <p id="import_file-help" class="text-sm leading-relaxed text-muted">
                         Maksimal {{ $uploadLimit }}@if ($uploadLimitedByPhp) (batas unggahan PHP di komputer ini; naikkan <span class="font-mono">upload_max_filesize</span> dan <span class="font-mono">post_max_size</span> untuk file lebih besar)@endif.
-                        File ekspor memuat profil penulis. Radar Narasi hanya membaca kolom yang dibutuhkan analisis dan menghapus file setelah diimpor.
+                        File ekspor memuat profil penulis. SyncTrace hanya membaca kolom yang dibutuhkan analisis dan menghapus file setelah diimpor.
                     </p>
                     @error('import_file') <p id="import_file-error" class="text-sm text-coord-ink">{{ $message }}</p> @enderror
                 </div>

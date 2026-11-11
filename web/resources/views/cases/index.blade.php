@@ -3,7 +3,7 @@
         <div class="flex max-w-3xl flex-col gap-1.5">
             <h1 class="text-3xl font-semibold">Kasus pemantauan</h1>
             <p class="text-[15px] leading-relaxed text-muted">
-                Radar Narasi menandai koordinasi: akun yang bergerak bersama secara tidak wajar.
+                SyncTrace menandai koordinasi: akun yang bergerak bersama secara tidak wajar.
                 Sistem menyajikan bukti; keputusan tetap di tangan analis.
             </p>
         </div>
@@ -17,6 +17,75 @@
 
     @if (session('status'))
         <p role="status" class="mt-6 rounded-lg bg-info-soft px-4 py-3 text-sm text-info-ink">{{ session('status') }}</p>
+    @endif
+
+    @if ($overview['guide'])
+        @php $guide = $overview['guide']; $guideCluster = $guide->clusters()->where('is_flagged', true)->orderBy('display_label')->first(); @endphp
+        <section aria-labelledby="judul-panduan" class="mt-8 rounded-xl border border-info-line bg-info-soft p-5">
+            <h2 id="judul-panduan" class="text-lg font-semibold text-info-ink">Mulai di sini</h2>
+            <p class="mt-1 max-w-3xl text-sm leading-relaxed text-info-ink">
+                Empat langkah untuk menilai sistem ini dalam lima menit. Semua data di akun demo adalah data sintetis.
+            </p>
+            <ol class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <li class="flex flex-col gap-2 rounded-lg bg-white p-4">
+                    <span class="font-mono text-xs text-muted">Langkah 1</span>
+                    <span class="font-semibold">Buka kasus contoh</span>
+                    <span class="text-sm leading-relaxed text-muted">Lihat skor keorganikan, lini waktu, dan graf koordinasi.</span>
+                    <a href="{{ route('cases.show', $guide) }}" class="mt-auto inline-flex min-h-11 items-center font-medium text-organic hover:underline">Buka {{ $guide->displayName() }}</a>
+                </li>
+                <li class="flex flex-col gap-2 rounded-lg bg-white p-4">
+                    <span class="font-mono text-xs text-muted">Langkah 2</span>
+                    <span class="font-semibold">Periksa bukti satu klaster</span>
+                    <span class="text-sm leading-relaxed text-muted">Empat sinyal, pasangan post yang mirip, dan narasi utama.</span>
+                    @if ($guideCluster)
+                        <a href="{{ route('clusters.show', [$guide, $guideCluster]) }}" class="mt-auto inline-flex min-h-11 items-center font-medium text-organic hover:underline">Buka klaster {{ $guideCluster->display_label }}</a>
+                    @endif
+                </li>
+                <li class="flex flex-col gap-2 rounded-lg bg-white p-4">
+                    <span class="font-mono text-xs text-muted">Langkah 3</span>
+                    <span class="font-semibold">Cocokkan dengan kunci jawaban</span>
+                    <span class="text-sm leading-relaxed text-muted">Klaster tanaman diketahui, jadi hasil deteksi bisa diperiksa.</span>
+                    <a href="{{ route('cases.answer', $guide) }}" class="mt-auto inline-flex min-h-11 items-center font-medium text-organic hover:underline">Tampilkan jawaban</a>
+                </li>
+                <li class="flex flex-col gap-2 rounded-lg bg-white p-4">
+                    <span class="font-mono text-xs text-muted">Langkah 4</span>
+                    <span class="font-semibold">Uji dengan data Anda sendiri</span>
+                    <span class="text-sm leading-relaxed text-muted">Unggah CSV, lalu lihat batas sistem di halaman Evaluasi.</span>
+                    <span class="mt-auto flex flex-wrap gap-x-4">
+                        <a href="{{ route('upload.create') }}" class="inline-flex min-h-11 items-center font-medium text-organic hover:underline">Coba Sendiri</a>
+                        <a href="{{ route('evaluation.show') }}" class="inline-flex min-h-11 items-center font-medium text-organic hover:underline">Evaluasi</a>
+                    </span>
+                </li>
+            </ol>
+        </section>
+    @endif
+
+    @if ($overview['cases'] > 0)
+        <dl class="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-xl border border-line bg-white px-5 py-4">
+                <dt class="text-sm text-muted">Kasus</dt>
+                <dd class="mt-1 font-mono text-3xl font-semibold">{{ \App\Support\Format::number($overview['cases']) }}</dd>
+            </div>
+            <div class="rounded-xl border border-line bg-white px-5 py-4">
+                <dt class="text-sm text-muted">Klaster ditandai</dt>
+                <dd class="mt-1 font-mono text-3xl font-semibold">{{ \App\Support\Format::number($overview['flagged']) }}</dd>
+            </div>
+            <div class="rounded-xl border border-line bg-white px-5 py-4">
+                <dt class="text-sm text-muted">Menunggu penilaian analis</dt>
+                <dd @class(['mt-1 font-mono text-3xl font-semibold', 'text-coord-ink' => $overview['pending'] > 0])>{{ \App\Support\Format::number($overview['pending']) }}</dd>
+            </div>
+            <div class="rounded-xl border border-line bg-white px-5 py-4">
+                <dt class="text-sm text-muted">Koordinasi tertinggi</dt>
+                <dd class="mt-1">
+                    @if ($overview['top'])
+                        <a href="{{ route('cases.show', $overview['top']) }}" class="font-semibold text-ink hover:underline">{{ $overview['top']->displayName() }}</a>
+                        <span class="block text-sm text-muted">{{ \App\Support\Format::percent(1 - $overview['top']->latestIssueScore->organic_score) }} post dari klaster ditandai</span>
+                    @else
+                        <span class="text-sm text-muted">Belum ada klaster ditandai</span>
+                    @endif
+                </dd>
+            </div>
+        </dl>
     @endif
 
     @if ($cases->isEmpty())

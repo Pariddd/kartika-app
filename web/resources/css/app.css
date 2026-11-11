@@ -3,7 +3,7 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-/* Token desain Radar Narasi. Biru = organik, oranye = dari klaster terkoordinasi. */
+/* Token desain SyncTrace. Biru = organik, oranye = dari klaster terkoordinasi. */
 @theme {
     --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -32,4 +32,104 @@
 [data-source-form]:has(input[name="platform"][value="instagram"]:checked) [data-source]:not([data-source~="instagram"]),
 [data-source-form]:has(input[name="platform"][value="tiktok"]:checked) [data-source]:not([data-source~="tiktok"]) {
     display: none;
+}
+
+/*
+ * Halaman depan. Semua animasi murni CSS (tanpa pustaka, tanpa skrip), jadi halaman tetap
+ * utuh bila JavaScript mati, dan berhenti total bila pengguna meminta gerak dikurangi.
+ */
+.sync-strip {
+    --sync-cycle: 11s;
+    --sync-sweep: 7s;
+}
+.sync-rail { stroke: #2d3a34; stroke-width: 1; }
+.sync-tick { stroke: #4b5a53; stroke-width: 1; }
+.sync-label { fill: #8d9a93; font-family: var(--font-mono); font-size: 13px; }
+.sync-label-hit { fill: #f3a45a; }
+.sync-count { fill: #f3a45a; font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+.sync-window { fill: #f08a2e; fill-opacity: 0.12; stroke: #f08a2e; stroke-opacity: 0.55; stroke-width: 1; stroke-dasharray: 4 4; }
+.sync-dot { fill: #6fa8e8; transform-box: fill-box; transform-origin: center; }
+.sync-dot-hit { fill: #f3a45a; }
+.sync-trace { fill: none; stroke: #f3a45a; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; }
+.sync-playhead { stroke: #e9eee9; stroke-width: 1.5; opacity: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+    .sync-dot { animation: sync-dot var(--sync-cycle) linear infinite backwards; }
+    .sync-event { animation: sync-fade var(--sync-cycle) linear infinite backwards; }
+    .sync-trace { animation: sync-trace var(--sync-cycle) linear infinite backwards; }
+    .sync-playhead { animation: sync-playhead var(--sync-cycle) linear infinite; }
+
+    .home-rise { animation: home-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+    .home-rise-2 { animation-delay: 0.12s; }
+    .home-rise-3 { animation-delay: 0.24s; }
+    .home-rise-4 { animation-delay: 0.4s; }
+
+    /* Muncul saat digulir: hanya di browser yang mendukung animasi berbasis gulir. */
+    @supports (animation-timeline: view()) {
+        .home-reveal {
+            animation: home-rise linear both;
+            animation-timeline: view();
+            animation-range: entry 0% entry 45%;
+        }
+    }
+}
+
+@keyframes sync-dot {
+    0% { opacity: 0; transform: scale(0.2); }
+    2.5% { opacity: 1; transform: scale(1.7); }
+    6% { opacity: 1; transform: scale(1); }
+    86% { opacity: 1; }
+    94%, 100% { opacity: 0; }
+}
+@keyframes sync-fade {
+    0% { opacity: 0; }
+    4%, 86% { opacity: 1; }
+    94%, 100% { opacity: 0; }
+}
+@keyframes sync-trace {
+    0% { stroke-dashoffset: 1; opacity: 1; }
+    7%, 86% { stroke-dashoffset: 0; opacity: 1; }
+    94%, 100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes sync-playhead {
+    0% { transform: translateX(0); opacity: 0; }
+    2% { opacity: 0.9; }
+    62% { transform: translateX(960px); opacity: 0.9; }
+    64%, 100% { transform: translateX(960px); opacity: 0; }
+}
+@keyframes home-rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/*
+ * Peraga "minimal dua sinyal": empat kotak centang bersaudara, dihitung dengan :has().
+ * Dua yang tercentang (input:checked ~ input:checked) berarti klaster ditandai.
+ */
+.signal-demo [data-verdict='yes'] { display: none; }
+.signal-demo:has(> input:checked ~ input:checked) [data-verdict='yes'] { display: block; }
+.signal-demo:has(> input:checked ~ input:checked) [data-verdict='no'] { display: none; }
+.signal-demo label { transition: border-color 0.15s, background-color 0.15s, transform 0.15s; }
+.signal-demo label:active { transform: scale(0.985); }
+.signal-demo:has(#sinyal-teks:checked) label[for='sinyal-teks'],
+.signal-demo:has(#sinyal-waktu:checked) label[for='sinyal-waktu'],
+.signal-demo:has(#sinyal-profil:checked) label[for='sinyal-profil'],
+.signal-demo:has(#sinyal-tautan:checked) label[for='sinyal-tautan'] {
+    border-color: var(--color-coord);
+    background-color: var(--color-coord-soft);
+}
+.signal-demo:has(#sinyal-teks:checked) label[for='sinyal-teks'] [data-state],
+.signal-demo:has(#sinyal-waktu:checked) label[for='sinyal-waktu'] [data-state],
+.signal-demo:has(#sinyal-profil:checked) label[for='sinyal-profil'] [data-state],
+.signal-demo:has(#sinyal-tautan:checked) label[for='sinyal-tautan'] [data-state] {
+    background-color: var(--color-coord);
+    border-color: var(--color-coord);
+    color: #fff;
+}
+.signal-demo:has(#sinyal-teks:focus-visible) label[for='sinyal-teks'],
+.signal-demo:has(#sinyal-waktu:focus-visible) label[for='sinyal-waktu'],
+.signal-demo:has(#sinyal-profil:focus-visible) label[for='sinyal-profil'],
+.signal-demo:has(#sinyal-tautan:focus-visible) label[for='sinyal-tautan'] {
+    outline: 3px solid var(--color-organic);
+    outline-offset: 2px;
 }

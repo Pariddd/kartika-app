@@ -2,6 +2,8 @@
 
 ID asli tidak pernah ditulis ke database: akun dan post di-HMAC lebih dulu,
 mention di dalam teks disamarkan, dan label tampilan akun dibuat berurutan per kasus.
+Pengecualian (docs/aturan-kerja.md): di mode lokal dengan fitur nama menyala, nama tampilan
+akun dan teks dengan @username asli ikut disimpan untuk admin dan analis.
 """
 
 from __future__ import annotations
@@ -138,6 +140,10 @@ def ingest(
         rows = []
         for post in posts:
             text = pseudo.mask_mentions(post.platform, post.text)[:MAX_TEXT_LENGTH]
+            # Teks dengan @username asli hanya disimpan bila fitur nama menyala (mode lokal) dan
+            # memang berbeda dari teks tersamar. Analisis selalu memakai kolom text yang tersamar.
+            original = post.text[:MAX_TEXT_LENGTH]
+            text_raw = original if store_names and original != text else None
             urls = list(post.urls)[:MAX_URLS] if post.urls else extract_urls(post.text)
             rows.append(
                 (
@@ -150,6 +156,7 @@ def ingest(
                     pseudo.optional_key(post.platform, post.reply_to_id),
                     pseudo.optional_key(post.platform, post.conversation_id),
                     Jsonb(urls),
+                    text_raw,
                 )
             )
 
@@ -157,8 +164,8 @@ def ingest(
             with conn.cursor() as cur:
                 cur.executemany(
                     """
-                    INSERT INTO posts (case_id, account_id, platform, post_key, text, posted_at, reply_to_key, conversation_key, urls)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO posts (case_id, account_id, platform, post_key, text, posted_at, reply_to_key, conversation_key, urls, text_raw)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (case_id, platform, post_key) DO NOTHING
                     """,
                     rows,

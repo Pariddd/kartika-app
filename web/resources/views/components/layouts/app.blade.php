@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ? $title.' · Radar Narasi' : 'Radar Narasi' }}</title>
+    <title>{{ $title ? $title.' · SyncTrace' : 'SyncTrace' }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
@@ -14,7 +14,7 @@
         <div class="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-2.5">
             <a href="{{ route('cases.index') }}" class="flex items-center gap-2.5 text-paper">
                 <x-logo class="size-7 text-[#e7b27a]" />
-                <span class="text-lg font-semibold">Radar Narasi</span>
+                <span class="text-lg font-semibold">SyncTrace</span>
             </a>
 
             <nav aria-label="Navigasi utama" class="flex flex-wrap gap-1">

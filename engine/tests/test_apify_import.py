@@ -51,10 +51,20 @@ def test_tweet_dipetakan_tanpa_username_bio_lokasi_atau_foto(tmp_path):
         assert private not in repr(post)
 
 
-def test_nama_tampilan_hanya_bila_diizinkan_dan_bukan_username(tmp_path):
+def test_nama_dan_username_hanya_bila_diizinkan(tmp_path):
     result = apify_import.read(write(tmp_path, [tweet("1", "2")]), "x", 100, include_names=True)
-    assert result.posts[0].author_name == "Nama Fiktif"
-    assert "username_fiktif" not in repr(result.posts[0])
+    assert result.posts[0].author_name == "Nama Fiktif (@username_fiktif)"
+
+    tanpa = apify_import.read(write(tmp_path, [tweet("1", "2")]), "x", 100)
+    assert tanpa.posts[0].author_name is None
+    assert "username_fiktif" not in repr(tanpa.posts[0])
+
+
+def test_label_penulis_tanpa_nama_atau_tanpa_username():
+    assert apify_import._author_label({"author": {"userName": "@hanya_handle"}}) == "@hanya_handle"
+    assert apify_import._author_label({"author": {"name": "Sama", "userName": "sama"}}) == "@sama"
+    assert apify_import._author_label({"displayName": "Hanya Nama"}) == "Hanya Nama"
+    assert apify_import._author_label({}) is None
 
 
 def test_balasan_retweet_dan_baris_rusak(tmp_path):
@@ -88,7 +98,7 @@ def test_komentar_instagram_dengan_balasan_bersarang(tmp_path):
     result = apify_import.read(write(tmp_path, data), "instagram", 100, include_names=True)
 
     top, reply = result.posts
-    assert top.platform == "instagram" and top.author_id == "5550001" and top.author_name == "Nama IG Fiktif"
+    assert top.platform == "instagram" and top.author_id == "5550001" and top.author_name == "Nama IG Fiktif (@akun_ig_fiktif)"
     assert top.posted_at == datetime(2026, 11, 1, 5, 0, tzinfo=UTC)
     assert top.conversation_id == "https://www.instagram.com/p/FIKTIF123/" and top.reply_to_id is None
     # Balasan hanya punya username: dipakai sebagai pengenal (di-HMAC oleh ingest), induknya terisi.

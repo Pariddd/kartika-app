@@ -19,6 +19,13 @@ final class CaseTimeline
 
     private const MAX_BARS = 48;
 
+    /** Lonjakan baru dicari bila ada cukup rentang untuk menghitung nilai tengah yang berarti. */
+    private const SPIKE_MIN_BUCKETS = 8;
+
+    private const SPIKE_MIN_POSTS = 5;
+
+    private const SPIKE_MAX_SHOWN = 3;
+
     /**
      * @return array<string, mixed>|null null bila kasus belum punya post
      */
@@ -73,6 +80,11 @@ final class CaseTimeline
             ];
         }
 
+        $spikes = self::spikes($total);
+        foreach ($buckets as $i => $bucket) {
+            $buckets[$i]['spike'] = isset($spikes['indexes'][$i]);
+        }
+
         $peakIndex = array_keys($total, max($total))[0];
         $coordPeakIndex = max($coordinated) > 0 ? array_keys($coordinated, max($coordinated))[0] : null;
 
@@ -85,7 +97,62 @@ final class CaseTimeline
             'peak' => $buckets[$peakIndex],
             'coordinated_peak' => $coordPeakIndex !== null ? $buckets[$coordPeakIndex] : null,
             'has_coordinated' => $flagged->isNotEmpty(),
+            'median' => $spikes['median'],
+            'spike_threshold' => $spikes['threshold'],
+            // Lonjakan terbesar lebih dulu; tiap entri membawa kelipatan terhadap nilai tengah.
+            'spikes' => collect($spikes['indexes'])->keys()
+                ->sortByDesc(fn (int $i) => $total[$i])
+                ->take(self::SPIKE_MAX_SHOWN)
+                ->map(fn (int $i) => $buckets[$i] + [
+                    'ratio' => $spikes['median'] > 0 ? $total[$i] / $spikes['median'] : null,
+                    'coordinated_share' => $coordinated[$i] / $total[$i],
+                ])
+                ->values()->all(),
+            'spike_count' => count($spikes['indexes']),
         ];
+    }
+
+    /**
+     * Lonjakan = rentang yang jumlah post-nya jauh di atas kebiasaan kasus itu sendiri:
+     * di atas nilai tengah + 3 x simpangan (MAD, tahan terhadap pencilan). Ini hanya
+     * penanda "lihat di sini"; lonjakan bisa saja organik (misalnya ada berita besar).
+     *
+     * @param  list<int>  $total
+     * @return array{indexes: array<int, true>, median: float, threshold: ?float}
+     */
+    public static function spikes(array $total): array
+    {
+        $median = self::median($total);
+        if (count($total) < self::SPIKE_MIN_BUCKETS) {
+            return ['indexes' => [], 'median' => $median, 'threshold' => null];
+        }
+
+        $mad = self::median(array_map(fn (int $value) => abs($value - $median), $total));
+        // Simpangan minimal 1 agar deret yang hampir datar tidak menandai kenaikan satu-dua post.
+        $threshold = $median + 3 * max(1.4826 * $mad, 1.0);
+
+        $indexes = [];
+        foreach ($total as $i => $value) {
+            if ($value > $threshold && $value >= self::SPIKE_MIN_POSTS) {
+                $indexes[$i] = true;
+            }
+        }
+
+        return ['indexes' => $indexes, 'median' => $median, 'threshold' => $threshold];
+    }
+
+    /**
+     * @param  list<int|float>  $values
+     */
+    private static function median(array $values): float
+    {
+        sort($values);
+        $n = count($values);
+        if ($n === 0) {
+            return 0.0;
+        }
+
+        return $n % 2 === 1 ? (float) $values[intdiv($n, 2)] : ($values[$n / 2 - 1] + $values[$n / 2]) / 2;
     }
 
     public static function bucketSize(int $span): int

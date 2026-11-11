@@ -88,3 +88,24 @@ def test_sintetis_valid():
 def test_sintetis_ditolak(params):
     with pytest.raises(PayloadError):
         validate_collect_params(params)
+
+
+def test_batas_post_bisa_diatur_lewat_env(monkeypatch):
+    from radar import payload
+
+    monkeypatch.delenv("RADAR_MAX_ITEMS", raising=False)
+    assert payload.max_items() == 20_000
+
+    monkeypatch.setenv("RADAR_MAX_ITEMS", "50000")
+    assert payload.max_items() == 50_000
+    params = {"platform": "youtube", "video_ids": ["dQw4w9WgXcQ"], "max_items": 50_000}
+    assert payload.validate_collect_params(params) == params
+
+    monkeypatch.setenv("RADAR_MAX_ITEMS", "100")
+    with pytest.raises(payload.PayloadError):
+        payload.validate_collect_params(params)
+
+    for salah in ("banyak", "0", "999999999"):
+        monkeypatch.setenv("RADAR_MAX_ITEMS", salah)
+        with pytest.raises(payload.PayloadError):
+            payload.max_items()

@@ -134,7 +134,7 @@
         @endif
 
         <footer class="mt-8 border-t border-[#e4e7e1] pt-4 text-xs leading-relaxed text-muted">
-            Dibuat Radar Narasi {{ Format::wib($printedAt) }} WIB untuk {{ $printedBy->name }} ({{ $printedBy->role->label() }}).
+            Dibuat SyncTrace {{ Format::wib($printedAt) }} WIB untuk {{ $printedBy->name }} ({{ $printedBy->role->label() }}).
             Identitas akun dipseudonimisasi; label akun dan klaster hanya berlaku di kasus ini. Akses ke halaman ini tercatat di log audit.
         </footer>
     </article>

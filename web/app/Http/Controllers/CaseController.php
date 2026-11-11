@@ -10,8 +10,10 @@ use App\Http\Requests\StoreCaseRequest;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\User;
+use App\Support\AccountNames;
 use App\Support\AnswerKey;
 use App\Support\CaseNetwork;
+use App\Support\CaseOverview;
 use App\Support\CaseTimeline;
 use App\Support\JobPayload;
 use App\Support\UploadLimit;
@@ -36,7 +38,7 @@ class CaseController extends Controller
             ->latest('updated_at')
             ->paginate(20);
 
-        return view('cases.index', ['cases' => $cases]);
+        return view('cases.index', ['cases' => $cases, 'overview' => CaseOverview::for($request->user())]);
     }
 
     public function create(): View
@@ -144,15 +146,23 @@ class CaseController extends Controller
         $hasAnswerKey = $case->mode === CaseMode::Demo
             && DB::table('demo_ground_truth')->where('case_id', $case->getKey())->exists();
 
+        // Nama akun di graf: syaratnya sama dengan halaman klaster, dan tercatat di log audit.
+        $showNames = AccountNames::visibleTo(request()->user(), $case);
+        $network = CaseNetwork::build($case, $showNames);
+        if ($showNames && $network !== null) {
+            AuditLog::record('cases.names', request()->user()->getKey(), $case->getKey(), request()->ip(), 200);
+        }
+
         return view('cases.show', [
             'case' => $case,
+            'showNames' => $showNames,
             'isProcessing' => $isProcessing,
             'flagged' => $case->clusters->where('is_flagged', true)->values(),
             'unflagged' => $case->clusters->where('is_flagged', false)->values(),
             'hasAnswerKey' => $hasAnswerKey,
             'answer' => $answer,
             'timeline' => CaseTimeline::build($case),
-            'network' => CaseNetwork::build($case),
+            'network' => $network,
         ]);
     }
 

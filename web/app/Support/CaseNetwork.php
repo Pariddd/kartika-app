@@ -7,14 +7,15 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Menyiapkan data graf koordinasi untuk browser: ID akun internal diganti label per kasus
- * (Akun-0001). Nama tampilan dan kunci akun tidak pernah ikut dikirim ke halaman.
+ * (Akun-0001). Kunci akun tidak pernah dikirim ke halaman. Nama tampilan hanya ikut
+ * bila pemanggil sudah memeriksa AccountNames::visibleTo.
  */
 final class CaseNetwork
 {
     /**
      * @return array<string, mixed>|null null bila analisis belum menghasilkan graf
      */
-    public static function build(CaseFile $case): ?array
+    public static function build(CaseFile $case, bool $withNames = false): ?array
     {
         $raw = DB::table('case_graphs')->where('case_id', $case->getKey())->value('graph');
         $graph = is_string($raw) ? json_decode($raw, true) : null;
@@ -27,6 +28,14 @@ final class CaseNetwork
             ->whereIn('id', array_column($graph['nodes'], 'id'))
             ->pluck('display_label', 'id');
 
+        $names = $withNames
+            ? DB::table('accounts')
+                ->where('case_id', $case->getKey())
+                ->whereIn('id', array_column($graph['nodes'], 'id'))
+                ->whereNotNull('display_name')
+                ->pluck('display_name', 'id')
+            : collect();
+
         $clusterUrls = $case->clusters()
             ->get(['id', 'display_label'])
             ->mapWithKeys(fn ($cluster) => [$cluster->display_label => route('clusters.show', [$case, $cluster])]);
@@ -36,6 +45,7 @@ final class CaseNetwork
             $nodes[] = [
                 'id' => (int) $node['id'],
                 'label' => $labels[$node['id']] ?? 'Akun',
+                'name' => $names[$node['id']] ?? null,
                 'x' => (int) $node['x'],
                 'y' => (int) $node['y'],
                 'cluster' => $node['cluster'],

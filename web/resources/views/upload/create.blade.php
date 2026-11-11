@@ -2,7 +2,7 @@
     <div class="flex max-w-3xl flex-col gap-1.5">
         <h1 class="text-3xl font-semibold">Coba Sendiri</h1>
         <p class="text-[15px] leading-relaxed text-muted">
-            Unggah percakapan dalam format CSV. Radar Narasi mencari kelompok akun yang bergerak bersama,
+            Unggah percakapan dalam format CSV. SyncTrace mencari kelompok akun yang bergerak bersama,
             lalu hasilnya muncul sebagai kasus baru.
         </p>
     </div>

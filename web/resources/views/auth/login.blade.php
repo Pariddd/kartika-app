@@ -1,7 +1,7 @@
 <x-layouts.guest title="Masuk">
     <div class="flex items-center gap-2.5">
         <x-logo class="size-8 text-coord" />
-        <span class="text-xl font-semibold">Radar Narasi</span>
+        <span class="text-xl font-semibold">SyncTrace</span>
     </div>
 
     <section class="rounded-xl border border-line bg-white p-6 shadow-sm">
