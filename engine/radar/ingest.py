@@ -16,6 +16,7 @@ from typing import Iterable
 import psycopg
 from psycopg.types.json import Jsonb
 
+from radar import source
 from radar.pseudo import Pseudonymizer
 
 MAX_TEXT_LENGTH = 5000
@@ -42,6 +43,8 @@ class RawPost:
     urls: tuple[str, ...] = ()
     # Nama tampilan penulis; hanya disimpan bila ingest dipanggil dengan store_names=True.
     author_name: str | None = None
+    # Konten tempat komentar ditulis, "<platform>:<id>" (radar.source). Bukan data orang.
+    source_ref: str | None = None
 
 
 @dataclass
@@ -157,6 +160,7 @@ def ingest(
                     pseudo.optional_key(post.platform, post.conversation_id),
                     Jsonb(urls),
                     text_raw,
+                    source.valid(post.source_ref),
                 )
             )
 
@@ -164,8 +168,8 @@ def ingest(
             with conn.cursor() as cur:
                 cur.executemany(
                     """
-                    INSERT INTO posts (case_id, account_id, platform, post_key, text, posted_at, reply_to_key, conversation_key, urls, text_raw)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO posts (case_id, account_id, platform, post_key, text, posted_at, reply_to_key, conversation_key, urls, text_raw, source_ref)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (case_id, platform, post_key) DO NOTHING
                     """,
                     rows,

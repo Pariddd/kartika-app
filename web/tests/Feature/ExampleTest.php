@@ -42,3 +42,18 @@ test('ilustrasi halaman depan deterministik: empat akun serempak tiga kali', fun
         ->and($strip['events'])->toHaveCount(3)
         ->and(collect($strip['rows'])->where('coordinated', true)->count())->toBe(4);
 });
+
+test('halaman depan menjelaskan tiga peran tanpa memuat kredensial', function () {
+    $response = $this->get('/')->assertOk()
+        ->assertSee('Tiga peran, tiga batas akses.')
+        ->assertSeeInOrder(['Demo', 'Analis', 'Admin'])
+        ->assertSee('Akun juri');
+
+    foreach (['SEED_DEMO_PASSWORD', 'SEED_ADMIN_PASSWORD', 'SEED_ANALIS_PASSWORD'] as $key) {
+        $secret = env($key);
+        if (is_string($secret) && $secret !== '') {
+            expect($response->getContent())->not->toContain($secret);
+        }
+    }
+    expect($response->getContent())->not->toContain('@radar.local');
+});

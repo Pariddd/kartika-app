@@ -145,8 +145,7 @@ test('validasi impor X', function (array $input, string $field) {
 })->with([
     'tanpa file' => [['import_file' => null], 'import_file'],
     'bukan JSON' => [['import_file' => UploadedFile::fake()->createWithContent('data.csv', "akun,teks\n1,a")], 'import_file'],
-    'JSON rusak' => [['import_file' => UploadedFile::fake()->createWithContent('data.json', '{rusak')], 'import_file'],
-    'objek, bukan daftar' => [['import_file' => UploadedFile::fake()->createWithContent('data.json', '{"items":[]}')], 'import_file'],
+    'bukan JSON' => [['import_file' => UploadedFile::fake()->createWithContent('data.json', 'id,teks,waktu')], 'import_file'],
     'max_items melebihi batas' => [['max_items' => 20001], 'max_items'],
     'catatan terlalu panjang' => [['query' => str_repeat('a', 201)], 'query'],
 ]);
@@ -202,4 +201,19 @@ test('batas unggahan mengikuti nilai terkecil antara konfigurasi dan PHP', funct
 
     config(['radar.collect.import_file_max_kb' => 1]);
     expect(UploadLimit::importKilobytes())->toBe(1)->and(UploadLimit::label())->toBe('1 KB');
+});
+
+test('file JSON Lines dan objek pembungkus dari Actor lain diterima; kolomnya dikenali worker', function () {
+    Storage::fake('local');
+    config(['radar.mode' => 'local', 'radar.sources.import_enabled' => true]);
+    $user = User::factory()->create();
+
+    foreach ([
+        UploadedFile::fake()->createWithContent('dataset.jsonl', '{"commentBody":"a","publishedOn":"2026-11-01T05:00:00Z","commenter":{"handle":"x"}}'."\n"),
+        UploadedFile::fake()->createWithContent('dataset.json', '{"items":[{"commentBody":"a"}]}'),
+    ] as $file) {
+        $this->actingAs($user)
+            ->post(route('cases.store'), ['name' => 'Actor lain', 'platform' => 'tiktok', 'import_file' => $file])
+            ->assertSessionHasNoErrors();
+    }
 });

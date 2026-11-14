@@ -622,3 +622,21 @@ def test_nilai_pengaturan_rusak_dianggap_pseudonim_aktif(conn, pseudonym_off):
     assert app_settings.pseudonym_active(conn) is False
     conn.execute("UPDATE app_settings SET value = '\"bukan-boolean\"' WHERE key = 'pseudonym_mode'")
     assert app_settings.pseudonym_active(conn) is True
+
+
+def test_sumber_konten_disimpan_tanpa_username(conn, make_case):
+    from datetime import datetime, timezone
+
+    from radar.ingest import RawPost, ingest
+    from radar.pseudo import Pseudonymizer
+
+    pseudo = Pseudonymizer("kunci-uji-" + "x" * 32)
+    at = datetime(2026, 11, 1, 12, 0, tzinfo=timezone.utc)
+    case_id, _ = make_case()
+    ingest(conn, case_id, [
+        RawPost("tiktok", "a1", "p1", "komentar satu", at, source_ref="tiktok:7332000000000000001"),
+        RawPost("tiktok", "a2", "p2", "komentar dua", at, source_ref="bukan-format-sah"),
+        RawPost("tiktok", "a3", "p3", "komentar tiga", at),
+    ], pseudo)
+    refs = [r["source_ref"] for r in conn.execute("SELECT source_ref FROM posts WHERE case_id = %s ORDER BY id", (case_id,)).fetchall()]
+    assert refs == ["tiktok:7332000000000000001", None, None]

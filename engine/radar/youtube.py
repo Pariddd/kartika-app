@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
 
+from radar import source
 from radar.errors import ConfigError, JobError
 from radar.ingest import RawPost
 
@@ -137,7 +138,7 @@ class YouTubeClient:
                         break
                     top = thread.get("snippet", {}).get("topLevelComment", {})
                     thread_id = thread.get("id") or top.get("id")
-                    self._add(result, top, thread_id, None)
+                    self._add(result, top, thread_id, None, video_id)
 
                     included = thread.get("replies", {}).get("comments", [])
                     total_replies = int(thread.get("snippet", {}).get("totalReplyCount", 0))
@@ -145,7 +146,7 @@ class YouTubeClient:
                     for reply in replies:
                         if len(result.posts) >= max_items:
                             break
-                        self._add(result, reply, thread_id, thread_id)
+                        self._add(result, reply, thread_id, thread_id, video_id)
 
                 page_token = body.get("nextPageToken")
                 if not page_token:
@@ -170,7 +171,7 @@ class YouTubeClient:
                 break
         return replies
 
-    def _add(self, result: CollectResult, comment: dict[str, Any], thread_id: str | None, parent_id: str | None) -> None:
+    def _add(self, result: CollectResult, comment: dict[str, Any], thread_id: str | None, parent_id: str | None, video_id: str | None = None) -> None:
         snippet = comment.get("snippet", {})
         author = (snippet.get("authorChannelId") or {}).get("value")
         # textDisplay (dengan textFormat=plainText) selalu tersedia; textOriginal tidak dijamin untuk API key.
@@ -189,5 +190,6 @@ class YouTubeClient:
                 reply_to_id=parent_id,
                 conversation_id=thread_id,
                 author_name=snippet.get("authorDisplayName") if self._include_names else None,
+                source_ref=source.build(PLATFORM, video_id or snippet.get("videoId")),
             )
         )

@@ -30,11 +30,18 @@
                 Dibuat {{ Format::wib($case->created_at) }} WIB oleh {{ $case->creator?->name ?? 'pengguna terhapus' }}
             </p>
         </div>
-        @if ($case->latestIssueScore)
-            <a href="{{ route('cases.report', $case) }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand px-5 font-medium text-white hover:bg-brand-dark">
-                Ringkasan BLUF
-            </a>
-        @endif
+        <div class="flex flex-wrap gap-2">
+            @if ($case->posts()->exists())
+                <a href="{{ route('cases.posts', $case) }}" class="inline-flex min-h-11 items-center rounded-lg border border-[#b9bfb6] bg-white px-5 font-medium hover:bg-paper">
+                    Baca komentar
+                </a>
+            @endif
+            @if ($case->latestIssueScore)
+                <a href="{{ route('cases.report', $case) }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand px-5 font-medium text-white hover:bg-brand-dark">
+                    Ringkasan BLUF
+                </a>
+            @endif
+        </div>
     </div>
 
     @if (session('status'))
@@ -153,7 +160,10 @@
             @if (! $isFlaggedList) <details class="mt-6"> <summary class="cursor-pointer text-sm font-medium text-organic">{{ $title }} ({{ $list->count() }}): kurang dari 2 sinyal aktif</summary> @endif
             <section aria-label="{{ $title }}" class="{{ $isFlaggedList ? 'mt-6' : 'mt-3' }} rounded-xl border border-line bg-white">
                 @if ($isFlaggedList)
-                    <div class="border-b border-[#e4e7e1] px-5 py-4"><h2 class="text-lg font-semibold">{{ $title }}</h2></div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#e4e7e1] px-5 py-4">
+                        <h2 class="text-lg font-semibold">{{ $title }}</h2>
+                        <a href="{{ route('cases.posts', [$case, 'klaster' => 'ditandai']) }}" class="text-sm font-medium text-organic hover:underline">Baca komentar klaster ditandai</a>
+                    </div>
                 @endif
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[820px] text-sm">

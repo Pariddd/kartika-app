@@ -80,6 +80,7 @@ def test_komentar_dan_balasan_dipetakan_tanpa_nama_atau_url_profil():
     assert result.posts[0].reply_to_id is None
     assert reply.posted_at.tzinfo == timezone.utc
     assert all(p.platform == "youtube" and p.account_created_at is None for p in result.posts)
+    assert all(p.source_ref == "youtube:vid00000001" for p in result.posts)  # balasan ikut video yang sama
 
     # RawPost tidak punya tempat untuk nama atau URL profil; pastikan tidak terselip di field mana pun.
     for post in result.posts:

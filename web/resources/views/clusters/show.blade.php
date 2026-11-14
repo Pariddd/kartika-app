@@ -28,6 +28,14 @@
     <p class="mt-2 text-[15px] text-muted">
         {{ $cluster->size }} akun · skor koordinasi <strong class="font-mono text-ink">{{ number_format($cluster->coordination_score, 2, ',', '') }}</strong>
         (rata-rata kekuatan empat sinyal)
+        · <a href="{{ route('cases.posts', [$case, 'klaster' => $cluster->display_label]) }}" class="font-medium text-organic hover:underline">Baca semua komentar klaster ini</a>
+        @if ($sources->isNotEmpty())
+            <br>Anggota klaster ini berkomentar di <strong class="text-ink">{{ $sources->count() }} konten sumber</strong>:
+            @foreach ($sources->take(5) as $item)
+                <a href="{{ route('cases.posts', [$case, 'klaster' => $cluster->display_label, 'sumber' => $item->source_ref]) }}" class="text-organic hover:underline">{{ \App\Support\ContentSource::label($item->source_ref) }}</a> ({{ $item->n }}){{ $loop->last ? '' : ',' }}
+            @endforeach
+            {{ $sources->count() > 5 ? 'dan '.($sources->count() - 5).' lainnya.' : '' }}
+        @endif
     </p>
 
     @if (session('status'))

@@ -10,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PrivacySettingsController;
 use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CasePostController;
 
 // Halaman depan publik. Pengguna yang sudah masuk langsung diarahkan ke daftar kasus.
 Route::get('/', HomeController::class)->name('home');
@@ -46,6 +47,11 @@ Route::middleware('auth')->group(function () {
             ->whereNumber('case')
             ->middleware('can:view,case')
             ->name('cases.report');
+
+        Route::get('/kasus/{case}/komentar', [CasePostController::class, 'index'])
+            ->whereNumber('case')
+            ->middleware('can:view,case')
+            ->name('cases.posts');
 
         // scopeBindings: klaster wajib milik kasus di URL, jika tidak 404.
         Route::get('/kasus/{case}/klaster/{cluster}', [ClusterController::class, 'show'])

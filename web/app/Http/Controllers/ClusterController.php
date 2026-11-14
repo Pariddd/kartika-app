@@ -45,8 +45,19 @@ class ClusterController extends Controller
             ->get()
             ->keyBy('id');
 
+        // Konten sumber tempat anggota klaster berkomentar (video/post yang sama atau berbeda-beda).
+        $sources = Post::query()
+            ->where('case_id', $case->getKey())
+            ->whereIn('account_id', $cluster->members->modelKeys())
+            ->whereNotNull('source_ref')
+            ->selectRaw('source_ref, COUNT(*) AS n')
+            ->groupBy('source_ref')
+            ->orderByDesc('n')
+            ->get();
+
         return view('clusters.show', [
             'case' => $case,
+            'sources' => $sources,
             'cluster' => $cluster,
             'signals' => $signals,
             'pairs' => $pairs,

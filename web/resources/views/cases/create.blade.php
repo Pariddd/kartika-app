@@ -111,7 +111,7 @@
 
                 <div class="flex flex-col gap-1.5">
                     <label for="import_file" class="text-sm font-medium">File JSON hasil ekspor</label>
-                    <input id="import_file" name="import_file" type="file" accept=".json,application/json"
+                    <input id="import_file" name="import_file" type="file" accept=".json,.jsonl,application/json"
                            aria-describedby="import_file-help @error('import_file') import_file-error @enderror"
                            @error('import_file') aria-invalid="true" @enderror
                            class="w-full rounded-lg border border-dashed border-[#b9bfb6] bg-[#fafbf9] p-3 text-sm file:mr-3 file:min-h-10 file:cursor-pointer file:rounded-md file:border file:border-[#b9bfb6] file:bg-white file:px-4 file:font-medium">

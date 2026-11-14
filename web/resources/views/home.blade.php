@@ -21,6 +21,7 @@
             <a href="#cara-kerja" class="hidden min-h-11 items-center rounded-lg px-3 text-[15px] font-medium text-muted hover:text-ink sm:inline-flex">Cara kerja</a>
             <a href="#evaluasi" class="hidden min-h-11 items-center rounded-lg px-3 text-[15px] font-medium text-muted hover:text-ink sm:inline-flex">Evaluasi</a>
             <a href="#privasi" class="hidden min-h-11 items-center rounded-lg px-3 text-[15px] font-medium text-muted hover:text-ink sm:inline-flex">Privasi</a>
+            <a href="#peran" class="hidden min-h-11 items-center rounded-lg px-3 text-[15px] font-medium text-muted hover:text-ink sm:inline-flex">Peran</a>
             <a href="{{ route('login') }}" class="inline-flex min-h-11 items-center rounded-lg bg-brand px-5 font-semibold text-white transition-colors hover:bg-brand-dark focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-organic">Masuk</a>
         </nav>
         </div>
@@ -217,10 +218,71 @@
                 </div>
                 <ul class="home-reveal flex flex-col divide-y divide-line border-y border-line text-[17px] leading-relaxed">
                     <li class="py-4"><span class="font-semibold">Pseudonim sejak data masuk.</span> ID akun diganti kode acak sebelum disimpan; label seperti Akun-0001 dipakai di seluruh tampilan.</li>
-                    <li class="py-4"><span class="font-semibold">Nama akun hanya untuk analis berwenang.</span> Hanya di instalasi lokal, hanya untuk admin dan analis, dan setiap kali dibuka tercatat di log audit.</li>
+                    <li class="py-4"><span class="font-semibold">Mode pseudonim aktif secara bawaan.</span> Nama akun asli hanya bisa dibuka bila admin mematikannya, hanya di instalasi lokal, dan setiap perubahan tercatat di log audit.</li>
                     <li class="py-4"><span class="font-semibold">Tidak ada profil per orang.</span> Yang dianalisis adalah kelompok dan kontennya, bukan riwayat satu akun.</li>
                     <li class="py-4"><span class="font-semibold">Konten sensitif disamarkan.</span> Kata bermuatan SARA ditutup secara bawaan di layar.</li>
                 </ul>
+            </div>
+        </section>
+
+        {{-- Peran: siapa bisa melihat apa. Tidak memuat kredensial apa pun. --}}
+        <section id="peran" class="scroll-mt-20 border-t border-line bg-white">
+            <div class="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+                <div class="home-reveal max-w-3xl">
+                    <h2 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Tiga peran, tiga batas akses.</h2>
+                    <p class="mt-4 text-lg leading-relaxed text-muted">Setiap orang hanya melihat yang dibutuhkan untuk tugasnya. Semua akses, termasuk yang ditolak, tercatat di log audit.</p>
+                </div>
+
+                <div class="mt-10 grid gap-4 md:grid-cols-3">
+                    @foreach ([
+                        [
+                            'name' => 'Demo',
+                            'for' => 'Untuk tamu dan uji coba',
+                            'badge' => null,
+                            'can' => ['Kasus contoh sintetis beserta kunci jawabannya', 'Coba Sendiri: unggah CSV dan lihat hasilnya', 'Halaman Evaluasi dan ringkasan BLUF'],
+                            'cannot' => 'Membuka kasus data nyata dan nama akun',
+                        ],
+                        [
+                            'name' => 'Analis',
+                            'for' => 'Untuk petugas yang bekerja dengan data',
+                            'badge' => null,
+                            'can' => ['Membuat kasus dari komentar YouTube dan file ekspor X, Instagram, TikTok', 'Memeriksa bukti dan menilai setiap klaster', 'Menyusun ringkasan untuk pimpinan'],
+                            'cannot' => 'Mengubah pengaturan privasi dan membuka log audit',
+                        ],
+                        [
+                            'name' => 'Admin',
+                            'for' => 'Untuk pengawas',
+                            'badge' => null,
+                            'can' => ['Semua hak analis', 'Mengatur mode pseudonim dan menghapus nama tersimpan', 'Membuka log audit dan menghapus kasus siapa pun'],
+                            'cannot' => null,
+                        ],
+                    ] as $role)
+                        <div class="home-reveal flex flex-col rounded-xl border border-line bg-paper p-6">
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="text-xl font-semibold">{{ $role['name'] }}</h3>
+                                @if ($role['badge'])
+                                    <span class="rounded-full bg-coord-soft px-2.5 py-0.5 text-xs font-semibold text-coord-ink">{{ $role['badge'] }}</span>
+                                @endif
+                            </div>
+                            <p class="mt-1 text-[15px] text-muted">{{ $role['for'] }}</p>
+                            <ul class="mt-5 flex flex-col gap-2.5 text-[15px] leading-relaxed">
+                                @foreach ($role['can'] as $item)
+                                    <li class="flex gap-2.5">
+                                        <svg viewBox="0 0 12 10" class="mt-1.5 h-2.5 w-3 shrink-0 fill-none stroke-organic stroke-2" aria-hidden="true"><path d="M1 5l3.5 3.5L11 1"/></svg>
+                                        <span>{{ $item }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            @if ($role['cannot'])
+                                <p class="mt-auto border-t border-line pt-4 text-[15px] leading-relaxed text-muted"><span class="font-medium text-ink">Tidak bisa:</span> {{ $role['cannot'] }}.</p>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+
+                <p class="home-reveal mt-8 max-w-3xl text-[15px] leading-relaxed text-muted">
+                    Di server publik ini, pengambilan data nyata dimatikan untuk semua peran: setiap akun hanya berisi data sintetis dan unggahan CSV.
+                </p>
             </div>
         </section>
     </main>
