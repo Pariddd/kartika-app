@@ -17,7 +17,7 @@ import psycopg
 
 from pathlib import Path
 
-from radar import apify_import, csv_input, queue, synthetic, youtube
+from radar import apify_import, app_settings, csv_input, queue, synthetic, youtube
 from radar.analysis import store
 from radar.analysis.model import Params
 from radar.analysis.pipeline import analyze
@@ -90,21 +90,22 @@ def collect_import(
     params = payload["params"]
     pseudo = Pseudonymizer(settings.pseudo_key)
     path = csv_input.resolve(settings.upload_dir, params["file_ref"], "json")
+    names = app_settings.store_names(conn, settings.names_enabled)
 
     # File ekspor memuat profil lengkap penulis; dihapus setelah dibaca, berhasil atau gagal.
     try:
-        imported = apify_import.read(path, params["platform"], params["max_items"], include_names=settings.names_enabled)
+        imported = apify_import.read(path, params["platform"], params["max_items"], include_names=names)
     finally:
         path.unlink(missing_ok=True)
 
     with conn.transaction():
-        result = ingest(conn, job.case_id, imported.posts, pseudo, store_names=settings.names_enabled)
+        result = ingest(conn, job.case_id, imported.posts, pseudo, store_names=names)
         summary = {
             "schema_version": SCHEMA_VERSION,
             "posts": result.posts_inserted,
             "accounts": result.accounts_inserted,
             "duplicates_skipped": result.duplicates_skipped,
-            "names_stored": settings.names_enabled,
+            "names_stored": names,
             "duration_ms": _elapsed_ms(started),
             "warnings": imported.warnings,
         }
@@ -118,7 +119,8 @@ def collect_youtube(
     params = payload["params"]
     # Pseudonymizer dibuat lebih dulu: tanpa PSEUDO_KEY, tidak ada satu pun permintaan ke API.
     pseudo = Pseudonymizer(settings.pseudo_key)
-    client = youtube.YouTubeClient(settings.youtube_api_key, include_names=settings.names_enabled)
+    names = app_settings.store_names(conn, settings.names_enabled)
+    client = youtube.YouTubeClient(settings.youtube_api_key, include_names=names)
 
     # Pengambilan data di luar transaksi: tidak ada kunci database yang ditahan selama menunggu jaringan.
     collected = client.collect(params["video_ids"], params["max_items"])
@@ -130,14 +132,14 @@ def collect_youtube(
         warnings.append(f"batas max_items ({params['max_items']}) tercapai; komentar lain tidak diambil")
 
     with conn.transaction():
-        result = ingest(conn, job.case_id, collected.posts, pseudo, store_names=settings.names_enabled)
+        result = ingest(conn, job.case_id, collected.posts, pseudo, store_names=names)
         summary = {
             "schema_version": SCHEMA_VERSION,
             "posts": result.posts_inserted,
             "accounts": result.accounts_inserted,
             "duplicates_skipped": result.duplicates_skipped,
             "api_requests": collected.requests,
-            "names_stored": settings.names_enabled,
+            "names_stored": names,
             "duration_ms": _elapsed_ms(started),
             "warnings": warnings,
         }

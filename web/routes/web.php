@@ -7,6 +7,7 @@ use App\Http\Controllers\CaseReportController;
 use App\Http\Controllers\ClusterController;
 use App\Http\Controllers\EvaluationController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PrivacySettingsController;
 use App\Http\Controllers\UploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +60,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit', [AuditLogController::class, 'index'])
             ->middleware('can:view-audit-log')
             ->name('audit.index');
+
+        // Pengaturan privasi: hanya admin (gate yang sama dengan log audit).
+        Route::get('/pengaturan', [PrivacySettingsController::class, 'show'])
+            ->middleware('can:manage-privacy')
+            ->name('settings.privacy');
     });
 
     Route::post('/kasus/{case}/klaster/{cluster}/penilaian', [ClusterController::class, 'review'])
@@ -77,6 +83,14 @@ Route::middleware('auth')->group(function () {
         ->whereNumber('case')
         ->middleware(['can:delete,case', 'throttle:20,1'])
         ->name('cases.destroy');
+
+    // Perubahan pengaturan dicatat di dalam Pseudonym (aksi settings.*), bukan lewat middleware audit.
+    Route::put('/pengaturan/pseudonim', [PrivacySettingsController::class, 'update'])
+        ->middleware(['can:manage-privacy', 'throttle:20,1'])
+        ->name('settings.pseudonym');
+    Route::delete('/pengaturan/nama', [PrivacySettingsController::class, 'purge'])
+        ->middleware(['can:manage-privacy', 'throttle:5,1'])
+        ->name('settings.purge');
 
     Route::post('/kasus', [CaseController::class, 'store'])
         ->middleware(['mode.local', 'can:collect-data', 'throttle:10,1'])

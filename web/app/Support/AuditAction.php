@@ -26,6 +26,10 @@ final class AuditAction
         'upload.create' => 'Membuka Coba Sendiri',
         'upload.store' => 'Mengunggah CSV',
         'audit.index' => 'Membuka log audit',
+        'settings.show' => 'Membuka pengaturan privasi',
+        'settings.pseudonym_on' => 'Mengaktifkan mode pseudonim',
+        'settings.pseudonym_off' => 'Mematikan mode pseudonim',
+        'settings.names_purged' => 'Menghapus semua nama akun tersimpan',
     ];
 
     public static function label(string $action): string

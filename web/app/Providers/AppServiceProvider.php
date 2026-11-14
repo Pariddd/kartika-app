@@ -27,5 +27,7 @@ class AppServiceProvider extends ServiceProvider
             && $user->hasRole(Role::Admin, Role::Analis));
 
         Gate::define('view-audit-log', fn (User $user): bool => $user->hasRole(Role::Admin));
+
+        Gate::define('manage-privacy', fn (User $user): bool => $user->hasRole(Role::Admin));
     }
 }

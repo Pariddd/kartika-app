@@ -54,6 +54,21 @@ def conn():
 
 
 @pytest.fixture
+def pseudonym_off(conn):
+    """Admin mematikan mode pseudonim selama satu test; dikembalikan seperti semula sesudahnya."""
+    before = conn.execute("SELECT value FROM app_settings WHERE key = 'pseudonym_mode'").fetchone()
+    conn.execute(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES ('pseudonym_mode', 'false', now()) "
+        "ON CONFLICT (key) DO UPDATE SET value = 'false'"
+    )
+    yield
+    if before is None:
+        conn.execute("DELETE FROM app_settings WHERE key = 'pseudonym_mode'")
+    else:
+        conn.execute("UPDATE app_settings SET value = %s WHERE key = 'pseudonym_mode'", (psycopg.types.json.Jsonb(before["value"]),))
+
+
+@pytest.fixture
 def make_case(conn):
     created = {"users": [], "cases": []}
 
@@ -430,7 +445,7 @@ def test_collect_youtube_tanpa_api_key_gagal_dengan_pesan_jelas(conn, make_case)
     assert case_status(conn, case_id) == "failed"
 
 
-def test_collect_youtube_menyimpan_nama_hanya_bila_dinyalakan(conn, make_case, youtube_tiruan):
+def test_collect_youtube_menyimpan_nama_hanya_bila_dinyalakan(conn, make_case, youtube_tiruan, pseudonym_off):
     youtube_tiruan["items"] = [{
         "id": "UgxThreadAsli9",
         "snippet": {"totalReplyCount": 0, "topLevelComment": {"id": "UgxThreadAsli9", "snippet": {
@@ -565,3 +580,45 @@ def test_teks_dengan_username_asli_hanya_disimpan_bila_nama_dinyalakan(conn, mak
     rows = conn.execute("SELECT text, text_raw FROM posts WHERE case_id = %s", (mati,)).fetchall()
     assert all(r["text_raw"] is None for r in rows)
     assert "budi_asli" not in repr(rows)
+
+
+def test_mode_pseudonim_aktif_mencegah_nama_disimpan_meski_env_mengizinkan(conn, make_case, youtube_tiruan):
+    """Bawaan: tidak ada baris di app_settings = pseudonim aktif = nama tidak disimpan."""
+    import dataclasses
+
+    from radar import app_settings
+
+    youtube_tiruan["items"] = [{
+        "id": "UgxThreadPseudo1",
+        "snippet": {"totalReplyCount": 0, "topLevelComment": {"id": "UgxThreadPseudo1", "snippet": {
+            "authorDisplayName": "@NamaRahasia", "authorChannelUrl": "http://www.youtube.com/@NamaRahasia",
+            "authorChannelId": {"value": "UCkanalRahasia"}, "textDisplay": "halo", "publishedAt": "2026-11-01T12:00:00Z",
+        }}},
+    }]
+    before = conn.execute("SELECT value FROM app_settings WHERE key = 'pseudonym_mode'").fetchone()
+    conn.execute("DELETE FROM app_settings WHERE key = 'pseudonym_mode'")
+    try:
+        assert app_settings.pseudonym_active(conn) is True
+        case_id, job_id = make_case()
+        run_once(conn, dataclasses.replace(settings(), store_account_names=True))
+        job = job_row(conn, job_id)
+        assert job["status"] == "done", job["error"]
+        assert job["result_summary"]["names_stored"] is False
+
+        account = conn.execute("SELECT display_name FROM accounts WHERE case_id = %s", (case_id,)).fetchone()
+        assert account["display_name"] is None
+        assert "NamaRahasia" not in repr(conn.execute("SELECT * FROM posts WHERE case_id = %s", (case_id,)).fetchall())
+    finally:
+        if before is not None:
+            conn.execute(
+                "INSERT INTO app_settings (key, value, updated_at) VALUES ('pseudonym_mode', %s, now())",
+                (psycopg.types.json.Jsonb(before["value"]),),
+            )
+
+
+def test_nilai_pengaturan_rusak_dianggap_pseudonim_aktif(conn, pseudonym_off):
+    from radar import app_settings
+
+    assert app_settings.pseudonym_active(conn) is False
+    conn.execute("UPDATE app_settings SET value = '\"bukan-boolean\"' WHERE key = 'pseudonym_mode'")
+    assert app_settings.pseudonym_active(conn) is True

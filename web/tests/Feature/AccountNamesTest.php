@@ -6,6 +6,12 @@ use App\Models\CaseFile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
+// Test di file ini menguji syarat lain; mode pseudonim (bawaan aktif) dimatikan dulu.
+// Perilaku mode pseudonim sendiri diuji di PseudonymModeTest.
+beforeEach(function () {
+    DB::table('app_settings')->insert(['key' => 'pseudonym_mode', 'value' => 'false', 'updated_at' => now()]);
+});
+
 function liveCaseWithNames(): array
 {
     $case = CaseFile::factory()->live()->create();

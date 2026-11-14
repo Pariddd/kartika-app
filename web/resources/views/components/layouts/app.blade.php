@@ -56,9 +56,32 @@
                         Log audit
                     </a>
                 @endcan
+                @can('manage-privacy')
+                    <a href="{{ route('settings.privacy') }}"
+                       @class([
+                           'inline-flex min-h-11 items-center rounded-md px-3.5 text-sm',
+                           'bg-white/10 font-medium text-white' => request()->routeIs('settings.*'),
+                           'text-[#d7dcd6] hover:text-white' => ! request()->routeIs('settings.*'),
+                       ])
+                       @if (request()->routeIs('settings.*')) aria-current="page" @endif>
+                        Privasi
+                    </a>
+                @endcan
             </nav>
 
             <div class="flex items-center gap-3 text-sm text-[#d7dcd6]">
+                @if (\App\Support\AppMode::isLocal() && auth()->user()->role !== \App\Enums\Role::Demo)
+                    {{-- Status nama akun selalu terlihat oleh yang berhak melihat nama, supaya tidak ada yang lupa sebelum merekam. --}}
+                    @if (\App\Support\Pseudonym::active())
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-[#2f4a3a] px-2.5 py-0.5 text-xs font-medium text-[#cfe8d6]">
+                            <span class="size-1.5 rounded-full bg-[#7fd39b]" aria-hidden="true"></span>Pseudonim aktif
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-[#5a3b1c] px-2.5 py-0.5 text-xs font-medium text-[#ffd9b0]">
+                            <span class="size-1.5 rounded-full bg-[#f3a45a]" aria-hidden="true"></span>Nama asli terlihat
+                        </span>
+                    @endif
+                @endif
                 <span>{{ auth()->user()->name }}</span>
                 <span class="rounded-full border border-[#5c6a61] px-2 py-0.5 text-xs">
                     peran: {{ auth()->user()->role->label() }}

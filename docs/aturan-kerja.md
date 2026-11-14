@@ -50,14 +50,17 @@ Keduanya hanya berkomunikasi lewat PostgreSQL. Laravel **tidak pernah** memanggi
 
 - ID akun, ID post, ID balasan, dan ID percakapan di-HMAC-SHA256 dengan `PSEUDO_KEY` **sebelum** ditulis ke database. Simpan hash penuh 64 hex.
 - Hanya ada **satu** implementasi pseudonimisasi: `engine/radar/pseudo.py`. Semua adapter dan worker CSV memakainya. Tanpa `PSEUDO_KEY`, proses berhenti dengan error (fail closed).
-- Username, ID asli, URL profil, foto profil, bio, dan lokasi **tidak disimpan sama sekali**.
-- Nama tampilan akun **tidak disimpan secara bawaan**. Pengecualian (keputusan ketua tim 11 November 2026, berdasarkan konfirmasi panitia): nama tampilan boleh disimpan dan diperlihatkan untuk kasus data nyata bila **semua** syarat ini terpenuhi:
+- ID asli, URL profil, foto profil, bio, dan lokasi **tidak disimpan sama sekali**.
+- **Mode pseudonim** (saklar admin di menu Privasi, tabel `app_settings`) **aktif secara bawaan**. Selama aktif, tidak ada peran yang melihat nama akun atau `@username` asli, dan worker tidak menyimpan nama dari kasus baru. Tabel kosong, baris hilang, atau nilai rusak dianggap aktif (fail closed). Worker hanya bisa membaca tabel ini.
+- Nama tampilan dan `@username` hanya disimpan dan diperlihatkan untuk kasus data nyata bila **semua** syarat ini terpenuhi (keputusan ketua tim 11 November 2026, berdasarkan konfirmasi panitia):
   - `APP_MODE=local` (laptop tim), tidak pernah di server publik;
-  - `RADAR_STORE_ACCOUNT_NAMES=true` di `engine/.env` dan `RADAR_SHOW_ACCOUNT_NAMES=true` di `web/.env`;
+  - admin mematikan mode pseudonim (tercatat di log audit sebagai `settings.pseudonym_off`);
+  - `RADAR_STORE_ACCOUNT_NAMES` (engine) dan `RADAR_SHOW_ACCOUNT_NAMES` (web) tidak diisi `false`;
   - `RADAR_PRESENTATION_MASK` mati;
-  - pengguna berperan admin atau analis. Setiap kali nama diperlihatkan, log audit mencatat `clusters.names`.
-  - Hanya nama tampilan; ID kanal tetap di-HMAC, URL profil dan foto tetap tidak dibaca.
-  - Nama tidak boleh muncul di link publik, screenshot, video, atau slide submission. Bukti konfirmasi panitia disimpan tim.
+  - pengguna berperan admin atau analis. Setiap kali nama diperlihatkan, log audit mencatat `clusters.names` atau `cases.names`.
+  - ID kanal tetap di-HMAC. Teks dengan `@username` asli disimpan terpisah di `posts.text_raw`; analisis selalu memakai `posts.text` yang tersamar.
+  - Nama tidak boleh muncul di link publik, screenshot, video, atau slide submission. Aktifkan mode pseudonim sebelum merekam. Bukti konfirmasi panitia disimpan tim.
+- Admin bisa menghapus permanen semua nama tersimpan dari menu Privasi (`settings.names_purged`). Lakukan sebelum menyalin atau menyerahkan database.
 - Mention `@username` di dalam teks diganti pseudonim saat normalisasi.
 - Label tampilan akun dibuat berurutan per kasus (`Akun-0001`, `Akun-0002`, ...). Jangan memakai potongan hash sebagai label karena rawan bertabrakan.
 - OSINT berpusat pada konten: domain, link, gambar, metadata teknis RDAP. **Dilarang**: menelusuri username di platform lain, mencocokkan akun dengan nama asli, foto, lokasi, kontak, atau data pemilik domain.
